@@ -19,6 +19,9 @@
     <ClInclude Include="win_mutex.h" />
     <ClInclude Include="op_counter.h" />
     <ClInclude Include="tcp_socket_test.h" />
+    <ClInclude Include="udp_socket_test.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="vstimer_only.cpp" />

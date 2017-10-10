@@ -153,6 +153,7 @@
     <ClInclude Include="handler_allocator.hpp" />
     <ClInclude Include="op_counter.h" />
     <ClInclude Include="tcp_socket_test.h" />
+    <ClInclude Include="udp_socket_test.h" />
     <ClInclude Include="win_mutex.h" />
   </ItemGroup>
   <ItemGroup>

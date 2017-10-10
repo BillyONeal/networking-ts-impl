@@ -41,12 +41,12 @@ void operator delete(void* p) noexcept {
 }
 #endif
 
-std::atomic<int> tcp_client_count;
+std::atomic<int> udp_client_count;
 
-class tcp_stats
+class udp_stats
 {
 public:
-  tcp_stats(int timeout)
+  udp_stats(int timeout)
     : mutex_(),
     timeout_(timeout),
     total_bytes_written_(0),
@@ -81,20 +81,20 @@ private:
 };
 
 template <typename IoContext>
-class tcp_client_session
+class udp_client_session
 {
 public:
-  tcp_client_session(IoContext &ioc, size_t block_size, tcp_stats &s)
+  udp_client_session(IoContext &ioc, size_t block_size, udp_stats &s)
     : strand_(ioc.get_executor()), socket_(ioc), io_context_(ioc),
     block_size_(block_size), read_data_(new char[block_size]),
     read_data_length_(0), write_data_(new char[block_size]),
     unwritten_count_(0), bytes_written_(0), bytes_read_(0), stats_(s) {
-    ++tcp_client_count;
+    ++udp_client_count;
     for (size_t i = 0; i < block_size_; ++i)
       write_data_[i] = static_cast<char>(i % 128);
   }
 
-  ~tcp_client_session()
+  ~udp_client_session()
   {
     stats_.add(bytes_written_, bytes_read_);
 
@@ -186,7 +186,7 @@ private:
   {
     socket_.close();
 
-    if (--tcp_client_count == 0)
+    if (--udp_client_count == 0)
       io_context_.stop();
   }
 
@@ -201,32 +201,32 @@ private:
   int unwritten_count_;
   size_t bytes_written_;
   size_t bytes_read_;
-  tcp_stats& stats_;
+  udp_stats& stats_;
   handler_allocator read_allocator_;
   handler_allocator write_allocator_;
 };
 
 template <typename IoContext>
-class tcp_client
+class udp_client
 {
 public:
-  tcp_client(IoContext &ioc,
-    const std::experimental::net::ip::tcp::endpoint endpoints,
-    size_t block_size, size_t session_count, int timeout)
-    : io_context_(ioc), stop_timer_(ioc), sessions_(), stats_(timeout) {
+  udp_client(IoContext &ioc,
+             const std::experimental::net::ip::tcp::endpoint endpoints,
+             size_t block_size, size_t session_count, int timeout)
+      : io_context_(ioc), stop_timer_(ioc), sessions_(), stats_(timeout) {
     stop_timer_.expires_after(std::chrono::seconds(timeout));
     stop_timer_.async_wait([this](auto) { handle_timeout(); });
 
     for (size_t i = 0; i < session_count; ++i)
     {
       auto *new_session =
-        new tcp_client_session<IoContext>(io_context_, block_size, stats_);
+        new udp_client_session<IoContext>(io_context_, block_size, stats_);
       new_session->start(endpoints);
       sessions_.push_back(new_session);
     }
   }
 
-  ~tcp_client()
+  ~udp_client()
   {
     while (!sessions_.empty())
     {
@@ -247,15 +247,15 @@ public:
 private:
   IoContext& io_context_;
   std::experimental::net::system_timer stop_timer_;
-  std::list<tcp_client_session<IoContext>*> sessions_;
-  tcp_stats stats_;
+  std::list<udp_client_session<IoContext>*> sessions_;
+  udp_stats stats_;
 };
 
 template <typename IoContext>
-class tcp_server_session
+class udp_server_session
 {
 public:
-  tcp_server_session(IoContext &ioc,
+  udp_server_session(IoContext &ioc,
     std::experimental::net::ip::tcp::socket s, size_t block_size)
     : io_context_(ioc),
     strand_(ioc.get_executor()),
@@ -269,7 +269,7 @@ public:
   {
   }
 
-  ~tcp_server_session()
+  ~udp_server_session()
   {
     delete[] read_data_;
     delete[] write_data_;
@@ -352,7 +352,7 @@ public:
       std::experimental::net::post(io_context_, [this] {destroy(this); });
   }
 
-  static void destroy(tcp_server_session* s)
+  static void destroy(udp_server_session* s)
   {
     delete s;
   }
@@ -372,10 +372,10 @@ private:
 };
 
 template <typename IoContext>
-class tcp_server
+class udp_server
 {
 public:
-  tcp_server(IoContext &ioc,
+  udp_server(IoContext &ioc,
     const std::experimental::net::ip::tcp::endpoint &endpoint,
     size_t block_size)
     : io_context_(ioc), acceptor_(ioc), block_size_(block_size) {
@@ -397,8 +397,8 @@ public:
   void handle_accept(std::error_code err,
     std::experimental::net::ip::tcp::socket s) {
     if (!err) {
-      auto *new_session = new tcp_server_session<IoContext>(
-        io_context_, std::move(s), block_size_);
+      auto *new_session = new udp_server_session<IoContext>(
+          io_context_, std::move(s), block_size_);
       new_session->start();
     }
     start_accept();
@@ -412,7 +412,7 @@ private:
 
 // 7MBs vs 30MBps
 template <typename IoContext, typename F>
-void tcp_socket_test(const char* label, F run)
+void udp_socket_test(const char* label, F run)
 {
   using namespace std::experimental::net;
   char const *args[7] = { label, "127.0.0.1", "8888", "8", "128", "14", "1" };
@@ -429,8 +429,8 @@ void tcp_socket_test(const char* label, F run)
     IoContext ioc;
     auto ep = ip::tcp::endpoint(address, atoi(port));
 
-    tcp_server<IoContext> s(ioc, ep, block_size);
-    tcp_client<IoContext> c(ioc, ep, block_size, session_count, timeout);
+    udp_server<IoContext> s(ioc, ep, block_size);
+    udp_client<IoContext> c(ioc, ep, block_size, session_count, timeout);
 
     run(ioc);
 
