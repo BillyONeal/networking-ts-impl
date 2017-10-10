@@ -97,6 +97,10 @@ struct Noisy {
 };
 
 //thread_local Noisy noisy;
+//4.65015 Mbytes written per second
+//4.65002 Mbytes read per second
+//31.4194 Mbytes written per second
+//31.4193 Mbytes read per second
 
 int main() {
   printf("%x: main\n", GetCurrentThreadId());

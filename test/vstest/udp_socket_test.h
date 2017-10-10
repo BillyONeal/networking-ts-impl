@@ -81,333 +81,106 @@ private:
 };
 
 template <typename IoContext>
-class udp_client_session
+class udp_client_server_base
 {
 public:
-  udp_client_session(IoContext &ioc, size_t block_size, udp_stats &s)
-    : strand_(ioc.get_executor()), socket_(ioc), io_context_(ioc),
-    block_size_(block_size), read_data_(new char[block_size]),
-    read_data_length_(0), write_data_(new char[block_size]),
-    unwritten_count_(0), bytes_written_(0), bytes_read_(0), stats_(s) {
-    ++udp_client_count;
-    for (size_t i = 0; i < block_size_; ++i)
-      write_data_[i] = static_cast<char>(i % 128);
+  udp_client_server_base(
+      IoContext &ioc,
+      const std::experimental::net::ip::udp::endpoint &local_endpoint,
+      const std::experimental::net::ip::udp::endpoint &remote_endpoint,
+      size_t block_size)
+      : io_context_(ioc), socket_(ioc, local_endpoint),
+        remote_endpoint_(remote_endpoint), block_size_(block_size),
+        read_data_(block_size) {}
+
+  udp_client_server_base(IoContext &ioc,
+    const std::experimental::net::ip::udp::endpoint &endpoint,
+    size_t block_size)
+    : io_context_(ioc), socket_(ioc, endpoint), block_size_(block_size),
+    read_data_(block_size) {
   }
 
-  ~udp_client_session()
+  void start_receive()
   {
-    stats_.add(bytes_written_, bytes_read_);
-
-    delete[] read_data_;
-    delete[] write_data_;
+    socket_.async_receive_from(
+      std::experimental::net::buffer(read_data_, block_size_),
+      remote_endpoint_,
+      make_custom_alloc_handler(
+        read_allocator_, [this](auto ec, auto n) { handle_read(ec, n); }));
   }
 
-  void start(std::experimental::net::ip::tcp::endpoint ep)
-  {
-    std::experimental::net::async_connect(socket_, &ep, &ep + 1,
-      std::experimental::net::bind_executor(strand_,
-        [this](auto ec, auto) { handle_connect(ec); }));
+  void start_write() {
+    socket_.async_send_to(
+      std::experimental::net::buffer(read_data_, block_size_),
+      remote_endpoint_,
+      make_custom_alloc_handler(
+        write_allocator_, [this](auto ec, auto n) { handle_write(ec, n); }));
   }
 
-  void stop()
-  {
-    std::experimental::net::post(strand_, [this] { close_socket(); });
-  }
-
-private:
-  void handle_connect(const std::error_code& err)
-  {
-    if (!err)
-    {
-      std::error_code set_option_err;
-      std::experimental::net::ip::tcp::no_delay no_delay(true);
-      socket_.set_option(no_delay, set_option_err);
-      if (!set_option_err)
-      {
-        ++unwritten_count_;
-        async_write(socket_, std::experimental::net::buffer(write_data_, block_size_),
-          std::experimental::net::bind_executor(strand_,
-            //make_custom_alloc_handler(write_allocator_,
-            [this](auto ec, auto n) { handle_write(ec, n); }));
-        socket_.async_read_some(std::experimental::net::buffer(read_data_, block_size_),
-          std::experimental::net::bind_executor(strand_,
-            make_custom_alloc_handler(read_allocator_,
-              [this](auto ec, auto n) { handle_read(ec, n); })));
-      }
+  void handle_read(std::error_code err, size_t n) {
+    if (!err) {
+      bytes_read_ += n;
+      start_write();
     }
   }
 
-  void handle_read(const std::error_code& err, size_t length)
-  {
-    if (!err)
-    {
-      bytes_read_ += length;
-
-      read_data_length_ = length;
-      ++unwritten_count_;
-      if (unwritten_count_ == 1)
-      {
-        std::swap(read_data_, write_data_);
-        async_write(socket_, std::experimental::net::buffer(write_data_, read_data_length_),
-          std::experimental::net::bind_executor(strand_,
-            make_custom_alloc_handler(write_allocator_,
-              [this](auto ec, auto n) { handle_write(ec, n); })));
-        socket_.async_read_some(std::experimental::net::buffer(read_data_, block_size_),
-          std::experimental::net::bind_executor(strand_,
-            make_custom_alloc_handler(read_allocator_,
-              [this](auto ec, auto n) { handle_read(ec, n); })));
-      }
+  void handle_write(std::error_code err, size_t n) {
+    if (!err) {
+      bytes_written_ += n;
+      start_receive();
     }
   }
 
-  void handle_write(const std::error_code& err, size_t length)
-  {
-    if (!err && length > 0)
-    {
-      bytes_written_ += length;
+protected:
+  size_t bytes_written_ = 0;
+  size_t bytes_read_ = 0;
 
-      --unwritten_count_;
-      if (unwritten_count_ == 1)
-      {
-        std::swap(read_data_, write_data_);
-        async_write(socket_, std::experimental::net::buffer(write_data_, read_data_length_),
-          std::experimental::net::bind_executor(strand_,
-            make_custom_alloc_handler(write_allocator_,
-              [this](auto ec, auto n) { handle_write(ec, n); })));
-        socket_.async_read_some(std::experimental::net::buffer(read_data_, block_size_),
-          std::experimental::net::bind_executor(strand_,
-            make_custom_alloc_handler(read_allocator_,
-              [this](auto ec, auto n) { handle_read(ec, n); })));
-      }
-    }
-  }
-
-  void close_socket()
-  {
-    socket_.close();
-
-    if (--udp_client_count == 0)
-      io_context_.stop();
-  }
-
-private:
-  IoContext& io_context_;
-  std::experimental::net::strand<typename IoContext::executor_type> strand_;
-  std::experimental::net::ip::tcp::socket socket_;
-  size_t block_size_;
-  char* read_data_;
-  size_t read_data_length_;
-  char* write_data_;
-  int unwritten_count_;
-  size_t bytes_written_;
-  size_t bytes_read_;
-  udp_stats& stats_;
   handler_allocator read_allocator_;
   handler_allocator write_allocator_;
+
+  std::vector<char> read_data_;
+  IoContext& io_context_;
+  std::experimental::net::ip::udp::endpoint remote_endpoint_;
+  std::experimental::net::ip::udp::socket socket_;
+  size_t block_size_;
 };
 
 template <typename IoContext>
-class udp_client
+class udp_client : udp_client_server_base<IoContext>
 {
 public:
   udp_client(IoContext &ioc,
-             const std::experimental::net::ip::tcp::endpoint endpoints,
-             size_t block_size, size_t session_count, int timeout)
-      : io_context_(ioc), stop_timer_(ioc), sessions_(), stats_(timeout) {
+             const std::experimental::net::ip::udp::endpoint &endpoint,
+             size_t block_size, int timeout)
+      : udp_client_server_base<IoContext>(
+            ioc, std::experimental::net::ip::udp::endpoint(), endpoint,
+            block_size), stop_timer_(ioc) {
     stop_timer_.expires_after(std::chrono::seconds(timeout));
-    stop_timer_.async_wait([this](auto) { handle_timeout(); });
+    stop_timer_.async_wait([this, timeout](auto) {
+      udp_stats stats(timeout);
+      stats.add(bytes_written_, bytes_read_);
+      stats.print();
+      io_context_.stop();
+    });
 
-    for (size_t i = 0; i < session_count; ++i)
-    {
-      auto *new_session =
-        new udp_client_session<IoContext>(io_context_, block_size, stats_);
-      new_session->start(endpoints);
-      sessions_.push_back(new_session);
-    }
+    this->start_write();
   }
-
-  ~udp_client()
-  {
-    while (!sessions_.empty())
-    {
-      delete sessions_.front();
-      sessions_.pop_front();
-    }
-
-    stats_.print();
-    exit(0);
-  }
-
-  void handle_timeout()
-  {
-    for (auto *session : sessions_)
-      session->stop();
-  }
-
 private:
-  IoContext& io_context_;
   std::experimental::net::system_timer stop_timer_;
-  std::list<udp_client_session<IoContext>*> sessions_;
-  udp_stats stats_;
 };
 
 template <typename IoContext>
-class udp_server_session
-{
-public:
-  udp_server_session(IoContext &ioc,
-    std::experimental::net::ip::tcp::socket s, size_t block_size)
-    : io_context_(ioc),
-    strand_(ioc.get_executor()),
-    socket_(std::move(s)),
-    block_size_(block_size),
-    read_data_(new char[block_size]),
-    read_data_length_(0),
-    write_data_(new char[block_size]),
-    unsent_count_(0),
-    op_count_(0)
-  {
-  }
-
-  ~udp_server_session()
-  {
-    delete[] read_data_;
-    delete[] write_data_;
-  }
-
-  std::experimental::net::ip::tcp::socket& socket()
-  {
-    return socket_;
-  }
-
-  void start()
-  {
-    std::error_code set_option_err;
-    std::experimental::net::ip::tcp::no_delay no_delay(true);
-    socket_.set_option(no_delay, set_option_err);
-    if (!set_option_err)
-    {
-      ++op_count_;
-      socket_.async_read_some(std::experimental::net::buffer(read_data_, block_size_),
-        std::experimental::net::bind_executor(strand_,
-          make_custom_alloc_handler(read_allocator_,
-            [this](auto ec, auto n) { handle_read(ec, n); })));
-    }
-    else
-    {
-      std::experimental::net::post(io_context_, [this] {destroy(this); });
-    }
-  }
-
-  void handle_read(const std::error_code& err, size_t length)
-  {
-    --op_count_;
-
-    if (!err)
-    {
-      read_data_length_ = length;
-      ++unsent_count_;
-      if (unsent_count_ == 1)
-      {
-        op_count_ += 2;
-        std::swap(read_data_, write_data_);
-        async_write(socket_, std::experimental::net::buffer(write_data_, read_data_length_),
-          std::experimental::net::bind_executor(strand_,
-            make_custom_alloc_handler(write_allocator_,
-              [this](auto ec, auto) { handle_write(ec); })));
-        socket_.async_read_some(std::experimental::net::buffer(read_data_, block_size_),
-          std::experimental::net::bind_executor(strand_,
-            make_custom_alloc_handler(read_allocator_,
-              [this](auto ec, auto n) { handle_read(ec, n); })));
-      }
-    }
-
-    if (op_count_ == 0)
-      std::experimental::net::post(io_context_, [this] {destroy(this); });
-  }
-
-  void handle_write(const std::error_code& err)
-  {
-    --op_count_;
-
-    if (!err)
-    {
-      --unsent_count_;
-      if (unsent_count_ == 1)
-      {
-        op_count_ += 2;
-        std::swap(read_data_, write_data_);
-        async_write(socket_, std::experimental::net::buffer(write_data_, read_data_length_),
-          std::experimental::net::bind_executor(strand_,
-            make_custom_alloc_handler(write_allocator_,
-              [this](auto ec, auto) { handle_write(ec); })));
-        socket_.async_read_some(std::experimental::net::buffer(read_data_, block_size_),
-          std::experimental::net::bind_executor(strand_,
-            make_custom_alloc_handler(read_allocator_,
-              [this](auto ec, auto n) { handle_read(ec, n); })));
-      }
-    }
-
-    if (op_count_ == 0)
-      std::experimental::net::post(io_context_, [this] {destroy(this); });
-  }
-
-  static void destroy(udp_server_session* s)
-  {
-    delete s;
-  }
-
-private:
-  IoContext& io_context_;
-  std::experimental::net::strand<typename IoContext::executor_type> strand_;
-  std::experimental::net::ip::tcp::socket socket_;
-  size_t block_size_;
-  char* read_data_;
-  size_t read_data_length_;
-  char* write_data_;
-  int unsent_count_;
-  int op_count_;
-  handler_allocator read_allocator_;
-  handler_allocator write_allocator_;
-};
-
-template <typename IoContext>
-class udp_server
+class udp_server : udp_client_server_base<IoContext>
 {
 public:
   udp_server(IoContext &ioc,
-    const std::experimental::net::ip::tcp::endpoint &endpoint,
-    size_t block_size)
-    : io_context_(ioc), acceptor_(ioc), block_size_(block_size) {
-    using namespace std::experimental::net;
-    acceptor_.open(endpoint.protocol());
-    acceptor_.set_option(ip::tcp::acceptor::reuse_address(1));
-    acceptor_.bind(endpoint);
-    acceptor_.listen();
-
-    start_accept();
+             const std::experimental::net::ip::udp::endpoint &endpoint,
+             size_t block_size)
+      : udp_client_server_base<IoContext>(
+            ioc, endpoint, std::experimental::net::ip::udp::endpoint(),
+            block_size) {
+    this->start_receive();
   }
-
-  void start_accept()
-  {
-    acceptor_.async_accept(io_context_,
-      [this](auto ec, auto s) { handle_accept(ec, std::move(s)); });
-  }
-
-  void handle_accept(std::error_code err,
-    std::experimental::net::ip::tcp::socket s) {
-    if (!err) {
-      auto *new_session = new udp_server_session<IoContext>(
-          io_context_, std::move(s), block_size_);
-      new_session->start();
-    }
-    start_accept();
-  }
-
-private:
-  IoContext& io_context_;
-  std::experimental::net::ip::tcp::acceptor acceptor_;
-  size_t block_size_;
 };
 
 // 7MBs vs 30MBps
@@ -427,10 +200,11 @@ void udp_socket_test(const char* label, F run)
     ip::address address = ip::make_address(host);
 
     IoContext ioc;
-    auto ep = ip::tcp::endpoint(address, atoi(port));
+    auto ep = ip::udp::endpoint(address, atoi(port));
 
     udp_server<IoContext> s(ioc, ep, block_size);
-    udp_client<IoContext> c(ioc, ep, block_size, session_count, timeout);
+    udp_client<IoContext> c(ioc, ep, block_size, timeout);
+    //udp_client<IoContext> c(ioc, ep, block_size, session_count, timeout);
 
     run(ioc);
 

@@ -35,6 +35,7 @@
 
 #if defined(NET_TS_WINDOWS) || defined(__CYGWIN__) \
   || defined(__MACH__) && defined(__APPLE__)
+  #include <Mstcpip.h>
 # if defined(NET_TS_HAS_PTHREADS)
 #  include <pthread.h>
 # endif // defined(NET_TS_HAS_PTHREADS)
@@ -1375,6 +1376,25 @@ bool non_blocking_sendto(socket_type s,
 
 #endif // !defined(NET_TS_HAS_IOCP)
 
+#if defined(NET_TS_WINDOWS) || defined(__CYGWIN__)
+
+inline void win_set_fast_loopback(socket_type s) {
+  int OptionValue = 1;
+  DWORD NumberOfBytesReturned = 0;
+
+  int status =
+      WSAIoctl(s, SIO_LOOPBACK_FAST_PATH, &OptionValue, sizeof(OptionValue),
+               NULL, 0, &NumberOfBytesReturned, 0, 0);
+
+  //if (SOCKET_ERROR == status) {
+  //  DWORD LastError = ::GetLastError();
+  //  printf("failed to set fast loopback %lu\n", LastError);
+  //  exit(1);
+  //}
+}
+
+#endif
+
 socket_type socket(int af, int type, int protocol,
     std::error_code& ec)
 {
@@ -1384,6 +1404,8 @@ socket_type socket(int af, int type, int protocol,
         WSA_FLAG_OVERLAPPED), ec);
   if (s == invalid_socket)
     return s;
+
+  win_set_fast_loopback(s);
 
   if (af == NET_TS_OS_DEF(AF_INET6))
   {
