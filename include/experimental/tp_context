@@ -81,7 +81,8 @@ public:
   NET_TS_DECL count_type poll_one() = delete;
 
   // FIXME: Hookup stop
-  NET_TS_DECL void stop() {} // = delete; // use cancel
+  NET_TS_DECL void stop() {
+  } // = delete; // use cancel
 
   NET_TS_DECL bool stopped() const = delete;
 

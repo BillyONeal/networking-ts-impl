@@ -202,6 +202,8 @@ void udp_socket_test(const char* label, F run)
     IoContext ioc;
     auto ep = ip::udp::endpoint(address, atoi(port));
 
+    printf("%s: testing udp client/server\n", label);
+
     udp_server<IoContext> s(ioc, ep, block_size);
     udp_client<IoContext> c(ioc, ep, block_size, timeout);
     //udp_client<IoContext> c(ioc, ep, block_size, session_count, timeout);

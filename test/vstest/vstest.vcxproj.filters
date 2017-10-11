@@ -41,6 +41,21 @@
     <ClInclude Include="..\..\include\experimental\__net_ts\detail\op_counter.hpp">
       <Filter>Header Files\__net_ts\detail</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\include\experimental\__net_ts\detail\win_iocp_socket_service.hpp">
+      <Filter>Header Files\__net_ts\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\experimental\__net_ts\detail\win_iocp_socket_service_base.hpp">
+      <Filter>Header Files\__net_ts\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\experimental\__net_ts\detail\wintp_socket_service.hpp">
+      <Filter>Header Files\__net_ts\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\experimental\__net_ts\basic_datagram_socket.hpp">
+      <Filter>Header Files\__net_ts</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\experimental\__net_ts\basic_socket.hpp">
+      <Filter>Header Files\__net_ts</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="vstimer_only.cpp" />

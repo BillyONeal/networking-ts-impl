@@ -78,6 +78,8 @@ template <typename IoObjectService1, typename IoObjectService2 = IoObjectService
 class basic_io_object
 {
 public:
+  using service_type1 = IoObjectService1;
+  using service_type2 = IoObjectService2;
   /// The type of the service that will be used to provide I/O operations.
   union service_type {
     IoObjectService1* svc1;
@@ -191,6 +193,8 @@ template <typename IoObjectService1, typename IoObjectService2>
 class basic_io_object<IoObjectService1, IoObjectService2, true>
 {
 public:
+  using service_type1 = IoObjectService1;
+  using service_type2 = IoObjectService2;
   /// The type of the service that will be used to provide I/O operations.
   union service_type {
     IoObjectService1* svc1;
