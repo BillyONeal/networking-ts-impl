@@ -198,7 +198,7 @@ public:
   };
 
   using implementation_type1 = typename IoObjectService1::implementation_type;
-  using implementation_type2 = typename IoObjectService1::implementation_type;
+  using implementation_type2 = typename IoObjectService2::implementation_type;
 
   /// The underlying implementation type of I/O object.
   union implementation_type {
@@ -273,10 +273,10 @@ protected:
   auto &get_service2() const { return *service_.svc2; }
 
   auto &get_implementation1() { return implementation_.impl1; }
-  auto &get_implementation2() { return implementation_.impl1; }
+  auto &get_implementation2() { return implementation_.impl2; }
 
   auto &get_implementation1() const { return implementation_.impl1; }
-  auto &get_implementation2() const { return implementation_.impl1; }
+  auto &get_implementation2() const { return implementation_.impl2; }
 
   int get_meta() const { return meta_; }
 #endif

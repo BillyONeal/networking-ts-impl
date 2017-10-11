@@ -32,9 +32,36 @@
 #define NET_TS_SVC_T_ONE \
     detail::deadline_timer_service< \
       detail::chrono_time_traits<Clock, WaitTraits> >
-#define NET_TS_SVC_T NET_TS_SVC_T_ONE , NET_TS_SVC_T_ONE
+#define NET_TS_SVC_T NET_TS_SVC_T_ONE , detail::dummy_timer_service
 
 #include <experimental/__net_ts/detail/push_options.hpp>
+
+namespace std {
+  namespace experimental {
+    namespace net {
+      inline namespace v1 {
+        namespace detail {
+          struct dummy_timer_service : service_base<dummy_timer_service> {
+            struct implementation_type {};
+            dummy_timer_service(io_context& owner) : service_base(owner) {}
+
+            void destroy(implementation_type&) {}
+            void construct(implementation_type&) {}
+
+            template <typename... Whatever>
+            void async_wait(Whatever const&...) {}
+
+            template <typename... Whatever>
+            std::size_t expires_after(Whatever const&...) { return {}; }
+            template <typename... Whatever>
+            std::size_t expires_at(Whatever const&...) { return {}; }
+          };
+        }
+      }
+    }
+  }
+}
+
 
 namespace std {
 namespace experimental {
