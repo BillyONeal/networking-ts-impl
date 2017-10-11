@@ -29,9 +29,10 @@
 
 #include <experimental/__net_ts/detail/chrono_time_traits.hpp>
 #include <experimental/__net_ts/detail/deadline_timer_service.hpp>
-#define NET_TS_SVC_T \
+#define NET_TS_SVC_T_ONE \
     detail::deadline_timer_service< \
       detail::chrono_time_traits<Clock, WaitTraits> >
+#define NET_TS_SVC_T NET_TS_SVC_T_ONE , NET_TS_SVC_T_ONE
 
 #include <experimental/__net_ts/detail/push_options.hpp>
 
@@ -83,7 +84,7 @@ class basic_waitable_timer;
  * timer.wait();
  * @endcode
  *
- * @par 
+ * @par
  * Performing an asynchronous wait (C++11):
  * @code
  * void handler(const std::error_code& error)
@@ -192,7 +193,7 @@ public:
     : basic_io_object<NET_TS_SVC_T>(io_context)
   {
     std::error_code ec;
-    this->get_service().expires_at(this->get_implementation(), expiry_time, ec);
+    NET_TS_SVC_INVOKE(expires_at, expiry_time, ec);
     std::experimental::net::detail::throw_error(ec, "expires_at");
   }
 
@@ -211,8 +212,7 @@ public:
     : basic_io_object<NET_TS_SVC_T>(io_context)
   {
     std::error_code ec;
-    this->get_service().expires_after(
-        this->get_implementation(), expiry_time, ec);
+    NET_TS_SVC_INVOKE(expires_after, expiry_time, ec);
     std::experimental::net::detail::throw_error(ec, "expires_after");
   }
 
@@ -394,8 +394,7 @@ public:
   std::size_t expires_after(const duration& expiry_time)
   {
     std::error_code ec;
-    std::size_t s = this->get_service().expires_after(
-        this->get_implementation(), expiry_time, ec);
+    std::size_t s = NET_TS_SVC_INVOKE(expires_after, expiry_time, ec);
     std::experimental::net::detail::throw_error(ec, "expires_after");
     return s;
   }
@@ -462,8 +461,7 @@ public:
     async_completion<WaitHandler,
       void (std::error_code)> init(handler);
 
-    this->get_service().async_wait(this->get_implementation(),
-        init.completion_handler);
+    NET_TS_SVC_INVOKE(async_wait, init.completion_handler);
 
     return init.result.get();
   }

@@ -1,5 +1,5 @@
-//#include "udp_socket_test.h"
-//#include "tcp_socket_test.h"
+#include "udp_socket_test.h"
+#include "tcp_socket_test.h"
 //#include "tp_context.h"
 //#include "null_context.h"
 #include <chrono>
@@ -55,7 +55,7 @@ void test(const char* name, F run) {
 #endif
 
 
-#if 0
+#if 1
   system_timer fast_timer(io, 100000ms);
 
   fast_timer.async_wait([&io](auto ec) {

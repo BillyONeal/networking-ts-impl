@@ -164,6 +164,8 @@ public:
 
   class service;
 
+  virtual int get_meta() { return 0; }
+
   /// The type used to count the number of handlers executed by the context.
   typedef std::size_t count_type;
 
@@ -549,6 +551,8 @@ class service_base
   : public std::experimental::net::io_context::service
 {
 public:
+  virtual int svc_meta() { return 0; }
+
   static std::experimental::net::detail::service_id<Type> id;
 
   // Constructor.
