@@ -544,8 +544,7 @@ public:
     async_completion<WriteHandler,
       void (std::error_code, std::size_t)> init(handler);
 
-    this->get_service().async_send_to(
-        this->get_implementation(), buffers, destination, 0,
+    NET_TS_SVC_INVOKE(async_send_to, buffers, destination, 0,
         init.completion_handler);
 
     return init.result.get();
@@ -827,7 +826,7 @@ public:
     std::experimental::net::detail::throw_error(ec, "receive_from");
     return s;
   }
-  
+
   /// Receive a datagram with the endpoint of the sender.
   /**
    * This function is used to receive a datagram. The function call will block
@@ -854,7 +853,7 @@ public:
     std::experimental::net::detail::throw_error(ec, "receive_from");
     return s;
   }
-  
+
   /// Receive a datagram with the endpoint of the sender.
   /**
    * This function is used to receive a datagram. The function call will block
@@ -930,8 +929,7 @@ public:
     async_completion<ReadHandler,
       void (std::error_code, std::size_t)> init(handler);
 
-    this->get_service().async_receive_from(
-        this->get_implementation(), buffers, sender_endpoint, 0,
+    NET_TS_SVC_INVOKE(async_receive_from, buffers, sender_endpoint, 0,
         init.completion_handler);
 
     return init.result.get();

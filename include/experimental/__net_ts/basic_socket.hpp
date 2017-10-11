@@ -131,9 +131,9 @@ public:
   {
     std::error_code ec;
     const protocol_type protocol = endpoint.protocol();
-    this->get_service().open(this->get_implementation(), protocol, ec);
+    NET_TS_SVC_INVOKE(open, protocol, ec);
     std::experimental::net::detail::throw_error(ec, "open");
-    this->get_service().bind(this->get_implementation(), endpoint, ec);
+    NET_TS_SVC_INVOKE(bind, endpoint, ec);
     std::experimental::net::detail::throw_error(ec, "bind");
   }
 
