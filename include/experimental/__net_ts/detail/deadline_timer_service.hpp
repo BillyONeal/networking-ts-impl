@@ -31,6 +31,10 @@
 #include <experimental/__net_ts/detail/wait_handler.hpp>
 #include <experimental/__net_ts/detail/wait_op.hpp>
 
+#if defined(NET_TS_HAS_IOCP)
+# include <experimental/__net_ts/detail/wintp_timer_service.hpp>
+#endif
+
 #if defined(NET_TS_WINDOWS_RUNTIME)
 # include <chrono>
 # include <thread>
@@ -43,6 +47,13 @@ namespace experimental {
 namespace net {
 inline namespace v1 {
 namespace detail {
+
+#if defined(NET_TS_HAS_IOCP)
+template <typename Time_Traits>
+using tp_timer_service = wintp_timer_service<Time_Traits>;
+#else
+// TODO: add GCD and linux
+#endif
 
 template <typename Time_Traits>
 class deadline_timer_service

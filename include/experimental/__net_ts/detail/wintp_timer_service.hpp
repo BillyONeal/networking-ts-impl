@@ -52,27 +52,16 @@ public:
 
   // The implementation type of the timer. This type is dependent on the
   // underlying implementation of the timer service.
-  struct implementation_type
-    : private std::experimental::net::detail::noncopyable
-  {
+  struct implementation_type {
     time_type expiry;
-    bool might_have_pending_waits;
-    typename timer_queue<Time_Traits>::per_timer_data timer_data;
   };
 
-  // Constructor.
-  deadline_timer_service(std::experimental::net::io_context& io_context)
-    : service_base<deadline_timer_service<Time_Traits> >(io_context),
-      scheduler_(std::experimental::net::use_service<timer_scheduler>(io_context))
-  {
-    scheduler_.init_task();
-    scheduler_.add_timer_queue(timer_queue_);
-  }
+  wintp_timer_service(io_context &io_context)
+      : service_base<wintp_timer_service<Time_Traits>>(io_context),
+        tp(dynamic_cast<tp_context&>(io_context)) {}
 
-  // Destructor.
-  ~deadline_timer_service()
-  {
-    scheduler_.remove_timer_queue(timer_queue_);
+  ~wintp_timer_service() {
+    // FIXME: Verify that there is no outstanding timers
   }
 
   // Destroy all user-defined handler objects owned by the service.
@@ -84,7 +73,6 @@ public:
   void construct(implementation_type& impl)
   {
     impl.expiry = time_type();
-    impl.might_have_pending_waits = false;
   }
 
   // Destroy a timer implementation.
@@ -94,6 +82,7 @@ public:
     cancel(impl, ec);
   }
 
+#if 0
   // Move-construct a new serial port implementation.
   void move_construct(implementation_type& impl,
       implementation_type& other_impl)
@@ -125,44 +114,19 @@ public:
     impl.might_have_pending_waits = other_impl.might_have_pending_waits;
     other_impl.might_have_pending_waits = false;
   }
+#endif
 
   // Cancel any asynchronous wait operations associated with the timer.
   std::size_t cancel(implementation_type& impl, std::error_code& ec)
   {
-    if (!impl.might_have_pending_waits)
-    {
-      ec = std::error_code();
-      return 0;
-    }
-
-    NET_TS_HANDLER_OPERATION((scheduler_.context(),
-          "deadline_timer", &impl, 0, "cancel"));
-
-    std::size_t count = scheduler_.cancel_timer(timer_queue_, impl.timer_data);
-    impl.might_have_pending_waits = false;
-    ec = std::error_code();
-    return count;
+    return 0;
   }
 
   // Cancels one asynchronous wait operation associated with the timer.
   std::size_t cancel_one(implementation_type& impl,
       std::error_code& ec)
   {
-    if (!impl.might_have_pending_waits)
-    {
-      ec = std::error_code();
-      return 0;
-    }
-
-    NET_TS_HANDLER_OPERATION((scheduler_.context(),
-          "deadline_timer", &impl, 0, "cancel_one"));
-
-    std::size_t count = scheduler_.cancel_timer(
-        timer_queue_, impl.timer_data, 1);
-    if (count == 0)
-      impl.might_have_pending_waits = false;
-    ec = std::error_code();
-    return count;
+    return 0;
   }
 
   // Get the expiry time for the timer as an absolute time.
@@ -209,63 +173,14 @@ public:
         Time_Traits::add(Time_Traits::now(), expiry_time), ec);
   }
 
-  // Perform a blocking wait on the timer.
-  void wait(implementation_type& impl, std::error_code& ec)
-  {
-    time_type now = Time_Traits::now();
-    ec = std::error_code();
-    while (Time_Traits::less_than(now, impl.expiry) && !ec)
-    {
-      this->do_wait(Time_Traits::to_posix_duration(
-            Time_Traits::subtract(impl.expiry, now)), ec);
-      now = Time_Traits::now();
-    }
-  }
-
   // Start an asynchronous wait on the timer.
   template <typename Handler>
   void async_wait(implementation_type& impl, Handler& handler)
   {
-    // Allocate and construct an operation to wrap the handler.
-    typedef wait_handler<Handler> op;
-    typename op::ptr p = { std::experimental::net::detail::addressof(handler),
-      op::ptr::allocate(handler), 0 };
-    p.p = new (p.v) op(handler);
-
-    impl.might_have_pending_waits = true;
-
-    NET_TS_HANDLER_CREATION((scheduler_.context(),
-          *p.p, "deadline_timer", &impl, 0, "async_wait"));
-
-    scheduler_.schedule_timer(timer_queue_, impl.expiry, impl.timer_data, p.p);
-    p.v = p.p = 0;
   }
 
 private:
-  // Helper function to wait given a duration type. The duration type should
-  // either be of type boost::posix_time::time_duration, or implement the
-  // required subset of its interface.
-  template <typename Duration>
-  void do_wait(const Duration& timeout, std::error_code& ec)
-  {
-#if defined(NET_TS_WINDOWS_RUNTIME)
-    std::this_thread::sleep_for(
-        std::chrono::seconds(timeout.total_seconds())
-        + std::chrono::microseconds(timeout.total_microseconds()));
-    ec = std::error_code();
-#else // defined(NET_TS_WINDOWS_RUNTIME)
-    ::timeval tv;
-    tv.tv_sec = timeout.total_seconds();
-    tv.tv_usec = timeout.total_microseconds() % 1000000;
-    socket_ops::select(0, 0, 0, 0, &tv, ec);
-#endif // defined(NET_TS_WINDOWS_RUNTIME)
-  }
-
-  // The queue of timers.
-  timer_queue<Time_Traits> timer_queue_;
-
-  // The object that schedules and executes timers. Usually a reactor.
-  timer_scheduler& scheduler_;
+  tp_context& tp;
 };
 
 } // namespace detail
