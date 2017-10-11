@@ -80,8 +80,8 @@ public:
 
   template <typename OtherOperation>
   void reserved_post(op_queue<OtherOperation> &q) {
-    auto size_t count = 0;
-    q.for_each([&count](auto) { ++count });
+    size_t count = 0;
+    q.for_each([&count](auto*) { ++count; });
 
     {
       std::lock_guard<wintp_mutex> grab(lock);

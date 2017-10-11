@@ -50,11 +50,60 @@ public:
   // The duration type.
   typedef typename Time_Traits::duration_type duration_type;
 
+  struct timer_impl {
+    explicit timer_impl(wintp_scheduler &scheduler)
+      : timer(CreateThreadpoolTimer(
+        [](auto, void *ctx, auto) {
+      static_cast<timer_impl *>(ctx)->invoke();
+    },
+        this, nullptr)),
+      scheduler(scheduler) {
+      // TODO: more detailed error codes
+      if (!timer)
+        throw std::bad_alloc();
+    }
+
+    void invoke() {
+      std::error_code ec;
+      op_queue<wait_op> q;
+      {
+        std::lock_guard<win_mutex> grab(m);
+        if (!cancelled_ops_.empty()) {
+          scheduler.reserved_post(cancelled_ops_);
+
+          // See if we need to schedule another wait
+          if (!ops_.empty() && expiry != time_type{}) {
+            auto time = expiry + epoch_adj;
+            SetThreadpoolTimer(timer, reinterpret_cast<PFILETIME>(&time), 0, 0);
+          }
+          return;
+        }
+        swap(q, ops_);
+        expiry = {};
+      }
+      operation *op = q.try_pop();
+      scheduler.reserved_post(q);
+      if (op) {
+        op->complete(this, ec, /*bytes_xfered=*/0);
+        scheduler.work_finished(); // TOOD: exception guard
+      }
+    }
+
+    ~timer_impl() { CloseThreadpoolTimer(timer); }
+
+    PTP_TIMER timer = nullptr;
+    wintp_scheduler &scheduler;
+
+    win_mutex m;
+    time_type expiry = {};
+    op_queue<wait_op> ops_;
+    op_queue<wait_op> cancelled_ops_;
+  };
+
   // The implementation type of the timer. This type is dependent on the
   // underlying implementation of the timer service.
-  struct implementation_type {
-    time_type expiry;
-  };
+  // FIXME: use object_pool
+  using implementation_type = std::unique_ptr<timer_impl>;
 
   wintp_timer_service(io_context &io_context)
       : service_base<wintp_timer_service<Time_Traits>>(io_context),
@@ -69,63 +118,59 @@ public:
   {
   }
 
-  // Construct a new timer implementation.
-  void construct(implementation_type& impl)
-  {
-    impl.expiry = time_type();
-  }
 
-  // Destroy a timer implementation.
-  void destroy(implementation_type& impl)
-  {
+  void destroy(implementation_type &impl) {
     std::error_code ec;
     cancel(impl, ec);
+    impl.reset();
   }
 
-#if 0
+  void construct(implementation_type &t) {
+    t = make_unique<timer_impl>(tp.scheduler());
+  }
+
   // Move-construct a new serial port implementation.
-  void move_construct(implementation_type& impl,
-      implementation_type& other_impl)
-  {
-    scheduler_.move_timer(timer_queue_, impl.timer_data, other_impl.timer_data);
-
-    impl.expiry = other_impl.expiry;
-    other_impl.expiry = time_type();
-
-    impl.might_have_pending_waits = other_impl.might_have_pending_waits;
-    other_impl.might_have_pending_waits = false;
+  void move_construct(implementation_type &impl,
+                      implementation_type &other_impl) {
+    impl = move(other_impl);
   }
 
   // Move-assign from another serial port implementation.
   void move_assign(implementation_type& impl,
-      deadline_timer_service& other_service,
+      wintp_timer_service& other_service,
       implementation_type& other_impl)
   {
-    if (this != &other_service)
-      if (impl.might_have_pending_waits)
-        scheduler_.cancel_timer(timer_queue_, impl.timer_data);
-
-    other_service.scheduler_.move_timer(other_service.timer_queue_,
-        impl.timer_data, other_impl.timer_data);
-
-    impl.expiry = other_impl.expiry;
-    other_impl.expiry = time_type();
-
-    impl.might_have_pending_waits = other_impl.might_have_pending_waits;
-    other_impl.might_have_pending_waits = false;
+    impl = move(other_impl);
   }
-#endif
 
   // Cancel any asynchronous wait operations associated with the timer.
   std::size_t cancel(implementation_type& impl, std::error_code& ec)
   {
-    return 0;
+    std::lock_guard<win_mutex> grab(impl->m);
+    if (impl->ops_.empty())
+      return 0;
+
+    std::size_t count = 0;
+    impl->ops_.for_each([&](wait_op *op) {
+      ++count;
+      op->ec_ = error::operation_aborted;
+    });
+
+    impl->cancelled_ops_.push(impl->ops_);
+    if (SetThreadpoolTimerEx(impl->timer, nullptr, 0, 0)) {
+      // timer will not fire. Move all of the cancelled ops to the
+      // scheduler.
+      tp.scheduler().reserved_post(impl->cancelled_ops_);
+    }
+
+    return count;
   }
 
   // Cancels one asynchronous wait operation associated with the timer.
   std::size_t cancel_one(implementation_type& impl,
       std::error_code& ec)
   {
+    throw std::logic_error("cancel_one, not yet implemented");
     return 0;
   }
 
@@ -152,7 +197,7 @@ public:
       const time_type& expiry_time, std::error_code& ec)
   {
     std::size_t count = cancel(impl, ec);
-    impl.expiry = expiry_time;
+    impl->expiry = expiry_time;
     ec = std::error_code();
     return count;
   }
@@ -177,8 +222,39 @@ public:
   template <typename Handler>
   void async_wait(implementation_type& impl, Handler& handler)
   {
+    // Allocate and construct an operation to wrap the handler.
+    typedef wait_handler<Handler> op;
+    typename op::ptr p = { std::experimental::net::detail::addressof(handler),
+      op::ptr::allocate(handler), 0 };
+    p.p = new (p.v) op(handler);
+
+    NET_TS_HANDLER_CREATION((scheduler_.context(),
+      *p.p, "wintp_timer", &impl, 0, "async_wait"));
+
+    schedule_timer(impl, p.p);
+    p.v = p.p = 0;
   }
 
+private:
+  void schedule_timer(implementation_type &impl, wait_op *op) {
+    tp.scheduler().work_started();
+
+    {
+      std::lock_guard<win_mutex> grab(impl->m);
+      if (impl->expiry != time_type()) {
+        bool ops_empty = impl->ops_.empty();
+        impl->ops_.push(op);
+
+        if (ops_empty && impl->cancelled_ops_.empty()) {
+          auto time = impl->expiry + epoch_adj;
+          SetThreadpoolTimer(impl->timer, reinterpret_cast<PFILETIME>(&time), 0,
+            0);
+        }
+        return;
+      }
+    }
+    tp.scheduler().reserved_post(op);
+  }
 private:
   tp_context& tp;
 };
