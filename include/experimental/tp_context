@@ -1,0 +1,168 @@
+//
+// tp_context
+// ~~~~~~~~~~~~~~
+//
+// Copyright (c) 2003-2017 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+//
+
+#ifndef NET_TS_TP_CONTEXT
+#define NET_TS_TP_CONTEXT
+
+#if defined(_MSC_VER) && (_MSC_VER >= 1200)
+# pragma once
+#endif // defined(_MSC_VER) && (_MSC_VER >= 1200)
+
+#include <experimental/__net_ts/detail/config.hpp>
+#include <experimental/io_context>
+
+#if defined(NET_TS_HAS_IOCP)
+# include <experimental/__net_ts/detail/wintp_scheduler.hpp>
+#endif
+
+#include <experimental/__net_ts/detail/push_options.hpp>
+
+namespace std {
+namespace experimental {
+namespace net {
+inline namespace v1 {
+
+namespace detail {
+#if defined(NET_TS_HAS_IOCP)
+  using tp_context_impl = wintp_scheduler;
+#else
+  typedef class scheduler tp_context_impl;
+#endif
+} // namespace detail
+
+class tp_context
+  : public io_context
+{
+private:
+  using impl_type = detail::tp_context_impl;
+public:
+  class executor_type;
+  friend class executor_type;
+
+  virtual int get_meta() { return 1; }
+
+  NET_TS_DECL tp_context() : impl(*this) {}
+  NET_TS_DECL ~tp_context() {}
+
+  executor_type get_executor() { return executor_type{*this}; }
+
+  void join() { impl.join(); }
+
+  void run() = delete;
+
+#if defined(NET_TS_HAS_CHRONO) || defined(GENERATING_DOCUMENTATION)
+  template <typename Rep, typename Period>
+  std::size_t run_for(const chrono::duration<Rep, Period>& rel_time) = delete;
+
+  template <typename Clock, typename Duration>
+  std::size_t run_until(const chrono::time_point<Clock, Duration>& abs_time) = delete;
+#endif // defined(NET_TS_HAS_CHRONO) || defined(GENERATING_DOCUMENTATION)
+
+  NET_TS_DECL count_type run_one() = delete;
+
+#if defined(NET_TS_HAS_CHRONO) || defined(GENERATING_DOCUMENTATION)
+  template <typename Rep, typename Period>
+  std::size_t run_one_for(const chrono::duration<Rep, Period>& rel_time) = delete;
+
+  template <typename Clock, typename Duration>
+  std::size_t run_one_until(
+      const chrono::time_point<Clock, Duration>& abs_time) = delete;
+#endif // defined(NET_TS_HAS_CHRONO) || defined(GENERATING_DOCUMENTATION)
+
+  NET_TS_DECL count_type poll() = delete;
+
+  NET_TS_DECL count_type poll_one() = delete;
+
+  NET_TS_DECL void stop() = delete; // use cancel
+
+  NET_TS_DECL bool stopped() const = delete;
+
+  NET_TS_DECL void restart() = delete;
+
+  /// Executor used to submit functions to an io_context.
+  class executor_type {
+  public:
+    /// Obtain the underlying execution context.
+    tp_context &context() const noexcept { return tp; }
+
+    void on_work_started() const noexcept { tp.impl.work_started(); }
+
+    void on_work_finished() const noexcept { tp.impl.work_finished(); }
+
+    template <typename Function, typename Allocator>
+    void dispatch(NET_TS_MOVE_ARG(Function) f, const Allocator &a) const;
+
+    template <typename Function, typename Allocator>
+    void post(Function && f, Allocator const& a) const {
+      using function_type = decay_t<Function>;
+
+      // Allocate and construct an operation to wrap the function.
+      using op = detail::executor_op<function_type, Allocator, detail::operation>;
+      typename op::ptr p = { detail::addressof(a), op::ptr::allocate(a), 0 };
+      p.p = new (p.v) op(NET_TS_MOVE_CAST(Function)(f), a);
+
+      NET_TS_HANDLER_CREATION((this->context(), *p.p,
+        "tp_context", &this->context(), 0, "post"));
+
+      tp.impl.post(p.p);
+
+      p.v = p.p = 0;
+    }
+    template <typename Function, typename Allocator>
+    void defer(NET_TS_MOVE_ARG(Function) f, const Allocator &a) const;
+
+    /// Compare two executors for equality.
+    /**
+     * Two executors are equal if they refer to the same underlying io_context.
+     */
+    friend bool operator==(const executor_type &a,
+                           const executor_type &b) NET_TS_NOEXCEPT {
+      return &a.tp == &b.tp;
+    }
+
+    /// Compare two executors for inequality.
+    /**
+     * Two executors are equal if they refer to the same underlying io_context.
+     */
+    friend bool operator!=(const executor_type &a,
+                           const executor_type &b) NET_TS_NOEXCEPT {
+      return !(a == b);
+    }
+
+  private:
+    friend class tp_context;
+
+    // Constructor.
+    explicit executor_type(tp_context &tp) : tp(tp) {}
+
+    // The underlying io_context.
+    tp_context &tp;
+  };
+
+private:
+  // The implementation.
+  impl_type impl;
+};
+
+} // inline namespace v1
+} // namespace net
+} // namespace experimental
+} // namespace std
+
+#include <experimental/__net_ts/detail/pop_options.hpp>
+
+#include <experimental/__net_ts/impl/io_context.hpp>
+#if defined(NET_TS_HEADER_ONLY)
+# include <experimental/__net_ts/impl/io_context.ipp>
+#endif // defined(NET_TS_HEADER_ONLY)
+
+// If both io_context.hpp and strand.hpp have been included, automatically
+// include the header file needed for the io_context::strand class.
+#endif // NET_TS_IO_CONTEXT_HPP

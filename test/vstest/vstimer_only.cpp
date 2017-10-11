@@ -1,3 +1,5 @@
+#include <experimental/tp_context>
+
 #include "udp_socket_test.h"
 #include "tcp_socket_test.h"
 //#include "tp_context.h"
@@ -10,7 +12,37 @@
 #include <utility>
 
 template <typename IoContext, typename F>
-void test(const char* name, F run) {
+void post_test(const char* name, F run) {
+  using namespace std::chrono;
+  using namespace std::experimental::net;
+
+  auto start = high_resolution_clock::now();
+  std::atomic<unsigned> count = 0;
+
+  printf("testing %s ...\n", name);
+  IoContext io;
+  post(io, [] { puts("work"); });
+
+#if 1
+  auto ex = io.get_executor();
+
+  for (int i = 0; i < 1'000'000; ++i)
+    post(ex, [&] { count.fetch_add(1, std::memory_order_relaxed); });
+#endif
+#if 0
+  //post(io, [] { puts("work1"); });
+  post(io.get_executor(), [] {
+    puts("work2");
+  });
+#endif
+  run(io);
+
+  duration<double> elapsed = high_resolution_clock::now() - start;
+  printf("run completed in %g seconds (%u)\n", elapsed.count(), count.load());
+}
+
+template <typename IoContext, typename F>
+void timer_test(const char* name, F run) {
   using namespace std::chrono;
   using namespace std::experimental::net;
 
@@ -111,7 +143,10 @@ int main() {
   not_inline_check();
   //udp_socket_test<io_context>("io_context", [](auto& io) { run(io, 8); });
   //tcp_socket_test<io_context>("io_context", [](auto& io) { run(io, 8); });
-  test<io_context>("io_context", [](auto& io) { run(io, 8); });
+  post_test<io_context>("io_context", [](auto& io) { run(io, 8); });
+  post_test<tp_context>("tp_context", [](auto& io) { io.join(); });
+  post_test<io_context>("io_context", [](auto& io) { run(io, 8); });
+  post_test<tp_context>("tp_context", [](auto& io) { io.join(); });
   //test<tp_context>("tp_context", [](auto& io) { io.join(); });
   //test<null_context>("null_context", [](auto& io) { io.join(); });
   //printf("%d\n", is_executor<tp_executor>::value);

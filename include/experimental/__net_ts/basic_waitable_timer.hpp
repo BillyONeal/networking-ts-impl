@@ -32,7 +32,7 @@
 #define NET_TS_SVC_T_ONE \
     detail::deadline_timer_service< \
       detail::chrono_time_traits<Clock, WaitTraits> >
-#define NET_TS_SVC_T NET_TS_SVC_T_ONE , detail::dummy_timer_service
+#define NET_TS_SVC_T NET_TS_SVC_T_ONE , NET_TS_SVC_T_ONE
 
 #include <experimental/__net_ts/detail/push_options.hpp>
 

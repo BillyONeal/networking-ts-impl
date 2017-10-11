@@ -141,6 +141,34 @@ public:
     return front_ == 0;
   }
 
+  void swap(op_queue &other)
+  {
+    using std::swap;
+    swap(front_, other.front_);
+    swap(back_, other.back_);
+  }
+
+  template <typename F>
+  void for_each(F f)
+  {
+    for (auto *p = front_; p; p = op_queue_access::next(p))
+      f(p);
+  }
+
+  Operation* try_pop()
+  {
+    if (front_)
+    {
+      Operation* tmp = front_;
+      front_ = op_queue_access::next(front_);
+      if (front_ == 0)
+        back_ = 0;
+      op_queue_access::next(tmp, static_cast<Operation*>(0));
+      return tmp;
+    }
+    return nullptr;
+  }
+
 private:
   friend class op_queue_access;
 
@@ -150,6 +178,12 @@ private:
   // The back of the queue.
   Operation* back_;
 };
+
+template <typename Operation>
+void swap(op_queue<Operation>& a, op_queue<Operation>& b)
+{
+  a.swap(b);
+}
 
 } // namespace detail
 } // inline namespace v1

@@ -150,6 +150,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\include\experimental\__net_ts\basic_waitable_timer.hpp" />
+    <ClInclude Include="..\..\include\experimental\__net_ts\detail\op_counter.hpp" />
+    <ClInclude Include="..\..\include\experimental\__net_ts\detail\wintp_mutex.hpp" />
+    <ClInclude Include="..\..\include\experimental\__net_ts\detail\wintp_scheduler.hpp" />
+    <ClInclude Include="..\..\include\experimental\__net_ts\detail\wintp_timer_service.hpp" />
     <ClInclude Include="handler_allocator.hpp" />
     <ClInclude Include="op_counter.h" />
     <ClInclude Include="tcp_socket_test.h" />
@@ -159,6 +164,17 @@
   <ItemGroup>
     <ClCompile Include="not_inline_check.cpp" />
     <ClCompile Include="vstimer_only.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\include\experimental\buffer" />
+    <None Include="..\..\include\experimental\executor" />
+    <None Include="..\..\include\experimental\internet" />
+    <None Include="..\..\include\experimental\io_context" />
+    <None Include="..\..\include\experimental\net" />
+    <None Include="..\..\include\experimental\netfwd" />
+    <None Include="..\..\include\experimental\socket" />
+    <None Include="..\..\include\experimental\timer" />
+    <None Include="..\..\include\experimental\tp_context" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
