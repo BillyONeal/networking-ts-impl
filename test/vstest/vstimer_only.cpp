@@ -1,11 +1,12 @@
-#include "udp_socket_test.h"
-#include "tcp_socket_test.h"
+//#include "udp_socket_test.h"
+//#include "tcp_socket_test.h"
 //#include "tp_context.h"
 //#include "null_context.h"
 #include <chrono>
-#include <experimental/io_context>
+#include <thread>
+//#include <experimental/io_context>
 #include <experimental/timer>
-#include <experimental/executor>
+//#include <experimental/executor>
 #include <utility>
 
 template <typename IoContext, typename F>
@@ -18,6 +19,9 @@ void test(const char* name, F run) {
 
   printf("testing %s ...\n", name);
   IoContext io;
+#if 1
+  system_timer unused_timer1(io);
+#endif
 
 #if 0
   system_timer DEDUCE(IoContext) timer(io);
@@ -49,9 +53,9 @@ void test(const char* name, F run) {
     puts("work2");
   });
 #endif
-#if 1
-  system_timer unused_timer1(io);
 
+
+#if 0
   system_timer fast_timer(io, 100000ms);
 
   fast_timer.async_wait([&io](auto ec) {
@@ -105,11 +109,9 @@ struct Noisy {
 int main() {
   printf("%x: main\n", GetCurrentThreadId());
   not_inline_check();
-  udp_socket_test<io_context>("io_context", [](auto& io) { run(io, 8); });
-  tcp_socket_test<io_context>("io_context", [](auto& io) { run(io, 8); });
+  //udp_socket_test<io_context>("io_context", [](auto& io) { run(io, 8); });
   //tcp_socket_test<io_context>("io_context", [](auto& io) { run(io, 8); });
-  //socket_test<tp_context>("tp_context", [](auto& io) { io.join(); });
-  //test<io_context>("io_context", [](auto& io) { run(io, 8); });
+  test<io_context>("io_context", [](auto& io) { run(io, 8); });
   //test<tp_context>("tp_context", [](auto& io) { io.join(); });
   //test<null_context>("null_context", [](auto& io) { io.join(); });
   //printf("%d\n", is_executor<tp_executor>::value);
