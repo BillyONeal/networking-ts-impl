@@ -1,5 +1,6 @@
 #include <experimental/tp_context>
 
+#include "cancellable_object_test.h"
 #include "udp_socket_test.h"
 #include "tcp_socket_test.h"
 //#include "tp_context.h"
@@ -142,11 +143,12 @@ int main() {
   try {
     printf("%x: main\n", GetCurrentThreadId());
     not_inline_check();
+    cancellable_object_test();
     //udp_socket_test<io_context>("io_context", [](auto& io) { run(io, 8); });
     //udp_socket_test<tp_context>("tp_context", [](auto& io) { io.join(); });
     //udp_socket_test<io_context>("io_context", [](auto& io) { run(io, 8); });
     //tcp_socket_test<io_context>("io_context", [](auto& io) { run(io, 8); });
-    tcp_socket_test<tp_context>("tp_context", [](auto& io) { io.join(); });
+    //tcp_socket_test<tp_context>("tp_context", [](auto& io) { io.join(); });
     //post_test<io_context>("io_context", [](auto& io) { run(io, 8); });
     //post_test<tp_context>("tp_context", [](auto& io) { io.join(); });
     //timer_test<io_context>("io_context", [](auto& io) { run(io, 8);  });

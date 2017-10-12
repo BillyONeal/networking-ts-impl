@@ -153,6 +153,7 @@
     <ClInclude Include="..\..\include\experimental\__net_ts\basic_datagram_socket.hpp" />
     <ClInclude Include="..\..\include\experimental\__net_ts\basic_socket.hpp" />
     <ClInclude Include="..\..\include\experimental\__net_ts\basic_waitable_timer.hpp" />
+    <ClInclude Include="..\..\include\experimental\__net_ts\detail\cancellable_object_owner.hpp" />
     <ClInclude Include="..\..\include\experimental\__net_ts\detail\op_counter.hpp" />
     <ClInclude Include="..\..\include\experimental\__net_ts\detail\wintp_mutex.hpp" />
     <ClInclude Include="..\..\include\experimental\__net_ts\detail\wintp_scheduler.hpp" />
@@ -160,6 +161,7 @@
     <ClInclude Include="..\..\include\experimental\__net_ts\detail\wintp_timer_service.hpp" />
     <ClInclude Include="..\..\include\experimental\__net_ts\detail\win_iocp_socket_service.hpp" />
     <ClInclude Include="..\..\include\experimental\__net_ts\detail\win_iocp_socket_service_base.hpp" />
+    <ClInclude Include="cancellable_object_test.h" />
     <ClInclude Include="handler_allocator.hpp" />
     <ClInclude Include="op_counter.h" />
     <ClInclude Include="tcp_socket_test.h" />
