@@ -99,7 +99,9 @@ public:
     void on_work_finished() const noexcept { tp.impl.work_finished(); }
 
     template <typename Function, typename Allocator>
-    void dispatch(NET_TS_MOVE_ARG(Function) f, const Allocator &a) const;
+    void dispatch(NET_TS_MOVE_ARG(Function) f, const Allocator &a) const {
+      post(std::forward<Function>(f), a);
+    }
 
     template <typename Function, typename Allocator>
     void post(Function && f, Allocator const& a) const {
@@ -118,7 +120,10 @@ public:
       p.v = p.p = 0;
     }
     template <typename Function, typename Allocator>
-    void defer(NET_TS_MOVE_ARG(Function) f, const Allocator &a) const;
+    void defer(NET_TS_MOVE_ARG(Function) f, const Allocator &a) const {
+      // FIXME: Add to thread_local queue?
+      post(std::forward<Function>(f), a);
+    }
 
     /// Compare two executors for equality.
     /**
