@@ -95,7 +95,8 @@ namespace detail {
       }
     };
 
-    using native_handle_type = socket_type;
+    // The native type of a socket.
+    using native_handle_type = typename detail::win_iocp_socket_service<Protocol>::native_handle_type;
     using implementation_type = unique_ptr<socket_impl>;
 
     // FIXME: use object_pool
@@ -135,6 +136,31 @@ namespace detail {
       return reinterpret_cast<connect_ex_fn>(ptr == this ? 0 : ptr);
     }
 
+    std::error_code do_assign(implementation_type &impl, int type,
+                              socket_type native_socket, std::error_code &ec)
+    {
+      if (is_open(impl))
+      {
+        ec = std::experimental::net::error::already_open;
+        return ec;
+      }
+
+      HANDLE sock_as_handle = reinterpret_cast<HANDLE>(native_socket);
+      if (register_handle(sock_as_handle, impl, ec))
+        return ec;
+
+      impl->socket_ = native_socket;
+      switch (type)
+      {
+      case SOCK_STREAM: impl->state_ = socket_ops::stream_oriented; break;
+      case SOCK_DGRAM: impl->state_ = socket_ops::datagram_oriented; break;
+      default: impl->state_ = 0; break;
+      }
+      impl->cancel_token_.reset(static_cast<void*>(0), socket_ops::noop_deleter());
+      ec = std::error_code();
+      return ec;
+    }
+
     std::error_code listen(implementation_type &impl, int backlog,
                            std::error_code &ec) {
       socket_ops::listen(impl->socket_, backlog, ec);
@@ -167,13 +193,23 @@ namespace detail {
         void work_started() { scheduler.work_started(); }
         void on_completion(win_iocp_operation *op, DWORD last_error = 0,
                            DWORD bytes_transferred = 0) {
-          scheduler.work_finished();
-          throw std::logic_error("not implemented yet");
+
+          // Store results in the OVERLAPPED structure.
+          op->Internal = reinterpret_cast<ULONG_PTR>(&std::system_category());
+          op->Offset = last_error;
+          op->OffsetHigh = bytes_transferred;
+
+          scheduler.reserved_post(op);
         }
         void on_completion(win_iocp_operation *op, std::error_code ec,
                            DWORD bytes_transferred = 0) {
-          scheduler.work_finished();
-          throw std::logic_error("not implemented yet");
+
+          // Store results in the OVERLAPPED structure.
+          op->Internal = reinterpret_cast<ULONG_PTR>(&ec.category());
+          op->Offset = ec.value();
+          op->OffsetHigh = bytes_transferred;
+
+          scheduler.reserved_post(op);
         }
         void on_pending(win_iocp_operation *op) {}
 
@@ -194,9 +230,13 @@ namespace detail {
             [](auto, void *ctx, void *over, auto IoResult, auto nBytes, auto) {
               auto *o = static_cast<OVERLAPPED *>(over);
               auto op = static_cast<win_iocp_operation *>(o);
-              std::error_code result_ec(
-                  IoResult,
-                  std::experimental::net::error::get_system_category());
+
+              // Store results in the OVERLAPPED structure.
+              op->Internal = reinterpret_cast<ULONG_PTR>(&std::system_category());
+              op->Offset = IoResult;
+              op->OffsetHigh = nBytes;
+
+              std::error_code result_ec;
 
               op->complete(ctx, result_ec, nBytes);
               auto *me = static_cast<socket_service *>(ctx);
@@ -622,16 +662,13 @@ namespace detail {
         const protocol_type& protocol, const native_handle_type& native_socket,
         std::error_code& ec)
       {
-#if 0
         if (!do_assign(impl, protocol.type(), native_socket, ec))
         {
-          impl.protocol_ = protocol;
-          impl.have_remote_endpoint_ = native_socket.have_remote_endpoint();
-          impl.remote_endpoint_ = native_socket.remote_endpoint();
+          impl->protocol_ = protocol;
+          impl->have_remote_endpoint_ = native_socket.have_remote_endpoint();
+          impl->remote_endpoint_ = native_socket.remote_endpoint();
         }
         return ec;
-#endif
-        throw std::logic_error("NYI");
       }
 
     private:

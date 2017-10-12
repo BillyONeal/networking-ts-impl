@@ -64,7 +64,12 @@ private:
       op = ops.try_pop();
     }
     if (op) {
-      op->complete(this, result_ec, /*bytes_xfered=*/0);
+      auto* err_cat = reinterpret_cast<std::error_category*>(op->Internal);
+      auto err_value = op->Offset;
+      std::error_code result_ec(err_value, *err_cat);
+      auto bytes_transferred = op->OffsetHigh;
+
+      op->complete(this, result_ec, bytes_transferred);
       counter.deref(); // TOOD: exception guard
     }
   }
