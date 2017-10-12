@@ -756,7 +756,7 @@ public:
     async_completion<WriteHandler,
       void (std::error_code, std::size_t)> init(handler);
 
-    this->get_service().async_send(this->get_implementation(),
+    NET_TS_SVC_INVOKE(async_send,
         buffers, 0, init.completion_handler);
 
     return init.result.get();
@@ -874,7 +874,7 @@ public:
     async_completion<ReadHandler,
       void (std::error_code, std::size_t)> init(handler);
 
-    this->get_service().async_receive(this->get_implementation(),
+    NET_TS_SVC_INVOKE(async_receive,
         buffers, 0, init.completion_handler);
 
     return init.result.get();

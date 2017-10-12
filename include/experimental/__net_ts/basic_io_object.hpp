@@ -77,6 +77,7 @@ template <typename IoObjectService1, typename IoObjectService2 = IoObjectService
 #endif
 class basic_io_object
 {
+#if 0 // TODO:
 public:
   using service_type1 = IoObjectService1;
   using service_type2 = IoObjectService2;
@@ -185,6 +186,7 @@ private:
 
   /// The underlying implementation of the I/O object.
   implementation_type implementation_;
+#endif
 };
 
 #if defined(NET_TS_HAS_MOVE)
@@ -216,7 +218,8 @@ public:
 
   executor_type get_executor() NET_TS_NOEXCEPT
   {
-    return service_->get_io_context().get_executor();
+    return (meta_ == 0) ? service_.svc1->get_io_context().get_executor()
+                        : service_.svc2->get_io_context().get_executor();
   }
 
 protected:
@@ -233,16 +236,28 @@ protected:
       new ((void*)&implementation_.impl2) implementation_type2();
       service_.svc2->construct(implementation_.impl2);
     }
-
-     NET_TS_SVC_INVOKE_(construct);
   }
 
-  basic_io_object(basic_io_object&& other)
-    : service_(&other.get_service())
+  basic_io_object(basic_io_object &&other)
+    : meta_(other.get_meta())
   {
-    service_->move_construct(implementation_, other.implementation_);
+    if (this->get_meta() == 0)
+    {
+      service_.svc1 = other.service_.svc1;
+      new ((void*)&implementation_.impl1) implementation_type1();
+      service_.svc1->move_construct(get_implementation1(),
+                                    other.get_implementation1());
+    }
+    else
+    {
+      service_.svc2 = other.service_.svc2;
+      new ((void*)&implementation_.impl2) implementation_type2();
+      service_.svc2->move_construct(get_implementation2(),
+        other.get_implementation2());
+    }
   }
-
+#if 0
+  // TODO:
   template <typename IoObjectService1>
   basic_io_object(IoObjectService1& other_service,
       typename IoObjectService1::implementation_type& other_implementation)
@@ -252,7 +267,7 @@ protected:
     service_->converting_move_construct(implementation_,
         other_service, other_implementation);
   }
-
+#endif
   ~basic_io_object()
   {
     NET_TS_SVC_INVOKE_(destroy);
@@ -261,7 +276,8 @@ protected:
     else
       implementation_.impl2.~implementation_type2();
   }
-
+#if 0
+  // TODO:
   basic_io_object& operator=(basic_io_object&& other)
   {
     service_->move_assign(implementation_,
@@ -269,7 +285,7 @@ protected:
     service_ = other.service_;
     return *this;
   }
-#if 1
+#endif
   auto &get_service1() { return *service_.svc1; }
   auto &get_service2() { return *service_.svc2; }
 
@@ -283,10 +299,10 @@ protected:
   auto &get_implementation2() const { return implementation_.impl2; }
 
   int get_meta() const { return meta_; }
-#endif
+
 private:
-  basic_io_object(const basic_io_object&);
-  void operator=(const basic_io_object&);
+  basic_io_object(const basic_io_object&) = delete;
+  void operator=(const basic_io_object&) = delete;
 
   const int meta_;
 

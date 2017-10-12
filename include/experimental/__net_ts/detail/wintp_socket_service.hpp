@@ -56,6 +56,9 @@ namespace detail {
     public service_base<wintp_socket_service<Protocol>>
   {
   public:
+    typedef BOOL(PASCAL *connect_ex_fn)(SOCKET,
+      const socket_addr_type*, int, void*, DWORD, DWORD*, OVERLAPPED*);
+
     // The protocol type.
     typedef Protocol protocol_type;
 
@@ -100,294 +103,541 @@ namespace detail {
 
     void construct(implementation_type &t) { t = make_unique<socket_impl>(); }
 
+    void move_construct(implementation_type &x, implementation_type &y)
+    {
+      x = std::move(y);
+    }
+
+    connect_ex_fn get_connect_ex(implementation_type &impl, int type)
+    {
+      if (type != NET_TS_OS_DEF(SOCK_STREAM)
+        && type != NET_TS_OS_DEF(SOCK_SEQPACKET))
+        throw std::logic_error("ConnextEx is required");
+
+      void* ptr = InterlockedCompareExchangePointer(&connect_ex_, 0, 0);
+      if (!ptr)
+      {
+        GUID guid = { 0x25a207b9, 0xddf3, 0x4660,
+        { 0x8e, 0xe9, 0x76, 0xe5, 0x8c, 0x74, 0x06, 0x3e } };
+
+        DWORD bytes = 0;
+        if (::WSAIoctl(impl->socket_, SIO_GET_EXTENSION_FUNCTION_POINTER,
+          &guid, sizeof(guid), &ptr, sizeof(ptr), &bytes, 0, 0) != 0)
+        {
+          // Set connect_ex_ to a special value to indicate that ConnectEx is
+          // unavailable. That way we won't bother trying to look it up again.
+          ptr = this;
+          throw std::logic_error("ConnextEx is required");
+        }
+
+        InterlockedExchangePointer(&connect_ex_, ptr);
+      }
+      return reinterpret_cast<connect_ex_fn>(ptr == this ? 0 : ptr);
+    }
+
     std::error_code listen(implementation_type &impl, int backlog,
-      std::error_code &ec) {
+                           std::error_code &ec) {
       socket_ops::listen(impl->socket_, backlog, ec);
       return ec;
-    }
-
-    // Determine whether the socket is open.
-    bool is_open(const implementation_type &impl) const {
-      return impl->socket_ != invalid_socket;
-    }
-
-    void restart_accept_op(socket_type s, socket_holder &new_socket, int family,
-      int type, int protocol, void *output_buffer,
-      DWORD address_length, operation *op) {
-      throw std::logic_error("restart_accept_op: not implemented yet");
-    }
-
-    struct tpio_service {
-      void work_started() { scheduler.work_started(); }
-      void on_completion(win_iocp_operation *op, DWORD last_error,
-        DWORD bytes_transferred = 0) {
-        scheduler.work_finished();
-        throw std::logic_error("not implemented yet");
-      }
-      void on_completion(win_iocp_operation *op, std::error_code ec,
-        DWORD bytes_transferred = 0) {
-        scheduler.work_finished();
-        throw std::logic_error("not implemented yet");
-      }
-      void on_pending(win_iocp_operation *op) {}
-
-      wintp_scheduler &scheduler;
-    };
-    tpio_service iocp_service_;
-
-    std::error_code register_handle(HANDLE handle, implementation_type &impl,
-                                    std::error_code &ec) {
-      impl->io = CreateThreadpoolIo(
-          handle,
-          [](auto, void *ctx, void *over, auto IoResult, auto nBytes, auto) {
-            auto *o = static_cast<OVERLAPPED *>(over);
-            auto op = static_cast<win_iocp_operation *>(o);
-            std::error_code result_ec(
-                IoResult, std::experimental::net::error::get_system_category());
-
-            op->complete(ctx, result_ec, nBytes);
-            auto *me = static_cast<socket_service *>(ctx);
-            me->iocp_service_.scheduler.work_finished();
-          },
-          this, nullptr);
-      // FIXME: Capture windows error
-      if (!impl->io)
-        ec = impl->io ? std::error_code{} : error::no_memory;
-      return ec;
-    }
-
-    std::error_code do_open(implementation_type &impl, int family, int type,
-      int protocol, std::error_code &ec) {
-      if (is_open(impl)) {
-        ec = std::experimental::net::error::already_open;
-        return ec;
       }
 
-      socket_holder sock(socket_ops::socket(family, type, protocol, ec));
-      if (sock.get() == invalid_socket)
-        return ec;
+      // Determine whether the socket is open.
+      bool is_open(const implementation_type &impl) const {
+        return impl->socket_ != invalid_socket;
+      }
 
-      HANDLE sock_as_handle = reinterpret_cast<HANDLE>(sock.get());
+      std::error_code close(implementation_type & impl, std::error_code & ec) {
+        socket_ops::close(impl->socket_, impl->state_, false, ec);
 
-      if (register_handle(sock_as_handle, impl, ec))
-        return ec;
-
-      impl->socket_ = sock.release();
-      switch (type) {
-      case SOCK_STREAM:
-        impl->state_ = socket_ops::stream_oriented;
-        break;
-      case SOCK_DGRAM:
-        impl->state_ = socket_ops::datagram_oriented;
-        break;
-      default:
+        impl->socket_ = invalid_socket;
         impl->state_ = 0;
-        break;
+        impl->cancel_token_.reset();
+
+        return ec;
       }
-      ec = std::error_code();
-      return ec;
-    }
 
-    wintp_socket_service(io_context &io_context)
-      : service_base<wintp_socket_service<Protocol>>(io_context),
-      iocp_service_{ dynamic_cast<tp_context &>(io_context).scheduler() }
-    {}
+      void restart_accept_op(socket_type s, socket_holder & new_socket,
+                             int family, int type, int protocol,
+                             void *output_buffer, DWORD address_length,
+                             operation *op) {
+        throw std::logic_error("restart_accept_op: not implemented yet");
+      }
 
-    void start_accept_op(implementation_type &impl, bool peer_is_open,
-      socket_holder &new_socket, int family, int type,
-      int protocol, void *output_buffer, DWORD address_length,
-      operation *op) {
-      iocp_service_.work_started();
+      struct tpio_service {
+        void work_started() { scheduler.work_started(); }
+        void on_completion(win_iocp_operation *op, DWORD last_error = 0,
+                           DWORD bytes_transferred = 0) {
+          scheduler.work_finished();
+          throw std::logic_error("not implemented yet");
+        }
+        void on_completion(win_iocp_operation *op, std::error_code ec,
+                           DWORD bytes_transferred = 0) {
+          scheduler.work_finished();
+          throw std::logic_error("not implemented yet");
+        }
+        void on_pending(win_iocp_operation *op) {}
 
-      if (!is_open(impl))
-        iocp_service_.on_completion(
-          op, std::experimental::net::error::bad_descriptor);
-      else if (peer_is_open)
-        iocp_service_.on_completion(op,
-          std::experimental::net::error::already_open);
-      else {
-        std::error_code ec;
-        new_socket.reset(socket_ops::socket(family, type, protocol, ec));
-        if (new_socket.get() == invalid_socket)
-          iocp_service_.on_completion(op, ec);
+        void post_immediate_completion(win_iocp_operation* op, bool)
+        {
+          work_started();
+          on_completion(op);
+        }
+
+        wintp_scheduler &scheduler;
+      };
+      tpio_service iocp_service_;
+
+      std::error_code register_handle(HANDLE handle, implementation_type & impl,
+                                      std::error_code & ec) {
+        impl->io = CreateThreadpoolIo(
+            handle,
+            [](auto, void *ctx, void *over, auto IoResult, auto nBytes, auto) {
+              auto *o = static_cast<OVERLAPPED *>(over);
+              auto op = static_cast<win_iocp_operation *>(o);
+              std::error_code result_ec(
+                  IoResult,
+                  std::experimental::net::error::get_system_category());
+
+              op->complete(ctx, result_ec, nBytes);
+              auto *me = static_cast<socket_service *>(ctx);
+              me->iocp_service_.scheduler.work_finished();
+            },
+            this, nullptr);
+        // FIXME: Capture windows error
+        if (!impl->io)
+          ec = impl->io ? std::error_code{} : error::no_memory;
+        return ec;
+      }
+
+      std::error_code do_open(implementation_type & impl, int family, int type,
+                              int protocol, std::error_code &ec) {
+        if (is_open(impl)) {
+          ec = std::experimental::net::error::already_open;
+          return ec;
+        }
+
+        socket_holder sock(socket_ops::socket(family, type, protocol, ec));
+        if (sock.get() == invalid_socket)
+          return ec;
+
+        HANDLE sock_as_handle = reinterpret_cast<HANDLE>(sock.get());
+
+        if (register_handle(sock_as_handle, impl, ec))
+          return ec;
+
+        impl->socket_ = sock.release();
+        switch (type) {
+        case SOCK_STREAM:
+          impl->state_ = socket_ops::stream_oriented;
+          break;
+        case SOCK_DGRAM:
+          impl->state_ = socket_ops::datagram_oriented;
+          break;
+        default:
+          impl->state_ = 0;
+          break;
+        }
+        ec = std::error_code();
+        return ec;
+      }
+
+      wintp_socket_service(io_context & io_context)
+          : service_base<wintp_socket_service<Protocol>>(io_context),
+            iocp_service_{dynamic_cast<tp_context &>(io_context).scheduler()} {}
+
+      void start_accept_op(implementation_type & impl, bool peer_is_open,
+                           socket_holder &new_socket, int family, int type,
+                           int protocol, void *output_buffer,
+                           DWORD address_length, operation *op) {
+        iocp_service_.work_started();
+
+        if (!is_open(impl))
+          iocp_service_.on_completion(
+              op, std::experimental::net::error::bad_descriptor);
+        else if (peer_is_open)
+          iocp_service_.on_completion(
+              op, std::experimental::net::error::already_open);
         else {
-          DWORD bytes_read = 0;
+          std::error_code ec;
+          new_socket.reset(socket_ops::socket(family, type, protocol, ec));
+          if (new_socket.get() == invalid_socket)
+            iocp_service_.on_completion(op, ec);
+          else {
+            DWORD bytes_read = 0;
+            StartThreadpoolIo(impl->io);
+            BOOL result =
+                ::AcceptEx(impl->socket_, new_socket.get(), output_buffer, 0,
+                           address_length, address_length, &bytes_read, op);
+            DWORD last_error = ::WSAGetLastError();
+            if (!result && last_error != WSA_IO_PENDING) {
+              CancelThreadpoolIo(impl->io);
+              iocp_service_.on_completion(op, last_error);
+            } else
+              iocp_service_.on_pending(op);
+          }
+        }
+      }
+
+      // FIXME: Refactor into base that does not depend on the protocol.
+
+      std::error_code bind(implementation_type & impl,
+                           const endpoint_type &endpoint, std::error_code &ec) {
+        socket_ops::bind(impl->socket_, endpoint.data(), endpoint.size(), ec);
+        return ec;
+      }
+
+      std::error_code open(implementation_type & impl,
+                           const protocol_type &protocol, std::error_code &ec) {
+        if (!do_open(impl, protocol.family(), protocol.type(),
+                     protocol.protocol(), ec)) {
+          impl->protocol_ = protocol;
+          impl->have_remote_endpoint_ = false;
+          impl->remote_endpoint_ = endpoint_type();
+        }
+        return ec;
+      }
+
+      void start_send_op(
+        implementation_type& impl,
+        WSABUF* buffers, std::size_t buffer_count,
+        socket_base::message_flags flags, bool noop, operation* op)
+      {
+        iocp_service_.work_started();
+
+        if (noop)
+          iocp_service_.on_completion(op);
+        else if (!is_open(impl))
+          iocp_service_.on_completion(op, std::experimental::net::error::bad_descriptor);
+        else
+        {
+          DWORD bytes_transferred = 0;
           StartThreadpoolIo(impl->io);
-          BOOL result =
-            ::AcceptEx(impl->socket_, new_socket.get(), output_buffer, 0,
-              address_length, address_length, &bytes_read, op);
+          int result = ::WSASend(impl->socket_, buffers,
+            static_cast<DWORD>(buffer_count), &bytes_transferred, flags, op, 0);
           DWORD last_error = ::WSAGetLastError();
-          if (!result && last_error != WSA_IO_PENDING) {
+          if (last_error == ERROR_PORT_UNREACHABLE)
+            last_error = WSAECONNREFUSED;
+          if (result != 0 && last_error != WSA_IO_PENDING)
+          {
             CancelThreadpoolIo(impl->io);
-            iocp_service_.on_completion(op, last_error);
+            iocp_service_.on_completion(op, last_error, bytes_transferred);
           }
           else
             iocp_service_.on_pending(op);
         }
       }
-    }
 
-    // FIXME: Refactor into base that does not depend on the protocol.
+      void start_send_to_op(implementation_type & impl, WSABUF * buffers,
+                            std::size_t buffer_count,
+                            const socket_addr_type *addr, int addrlen,
+                            socket_base::message_flags flags, operation *op) {
+        iocp_service_.work_started();
 
-    std::error_code bind(implementation_type &impl, const endpoint_type &endpoint,
-      std::error_code &ec) {
-      socket_ops::bind(impl->socket_, endpoint.data(), endpoint.size(), ec);
-      return ec;
-    }
-
-    std::error_code open(implementation_type &impl, const protocol_type &protocol,
-      std::error_code &ec) {
-      if (!do_open(impl, protocol.family(), protocol.type(), protocol.protocol(),
-        ec)) {
-        impl->protocol_ = protocol;
-        impl->have_remote_endpoint_ = false;
-        impl->remote_endpoint_ = endpoint_type();
-      }
-      return ec;
-    }
-
-    void start_send_to_op(implementation_type &impl, WSABUF *buffers,
-                          std::size_t buffer_count,
-                          const socket_addr_type *addr, int addrlen,
-                          socket_base::message_flags flags, operation *op) {
-      iocp_service_.work_started();
-
-      if (!is_open(impl))
-        iocp_service_.on_completion(op, std::experimental::net::error::bad_descriptor);
-      else
-      {
-        DWORD bytes_transferred = 0;
-        StartThreadpoolIo(impl->io);
-        int result = ::WSASendTo(impl->socket_, buffers,
-          static_cast<DWORD>(buffer_count),
-          &bytes_transferred, flags, addr, addrlen, op, 0);
-        DWORD last_error = ::WSAGetLastError();
-        if (last_error == ERROR_PORT_UNREACHABLE)
-          last_error = WSAECONNREFUSED;
-        if (result != 0 && last_error != WSA_IO_PENDING)
-        {
-          CancelThreadpoolIo(impl->io);
-          iocp_service_.on_completion(op, last_error, bytes_transferred);
+        if (!is_open(impl))
+          iocp_service_.on_completion(
+              op, std::experimental::net::error::bad_descriptor);
+        else {
+          DWORD bytes_transferred = 0;
+          StartThreadpoolIo(impl->io);
+          int result = ::WSASendTo(
+              impl->socket_, buffers, static_cast<DWORD>(buffer_count),
+              &bytes_transferred, flags, addr, addrlen, op, 0);
+          DWORD last_error = ::WSAGetLastError();
+          if (last_error == ERROR_PORT_UNREACHABLE)
+            last_error = WSAECONNREFUSED;
+          if (result != 0 && last_error != WSA_IO_PENDING) {
+            CancelThreadpoolIo(impl->io);
+            iocp_service_.on_completion(op, last_error, bytes_transferred);
+          } else
+            iocp_service_.on_pending(op);
         }
-        else
-          iocp_service_.on_pending(op);
       }
-    }
 
-    void start_receive_from_op(
-      implementation_type& impl,
-      WSABUF* buffers, std::size_t buffer_count, socket_addr_type* addr,
-      socket_base::message_flags flags, int* addrlen, operation* op)
-    {
-      iocp_service_.work_started();
-
-      if (!is_open(impl))
-        iocp_service_.on_completion(op, std::experimental::net::error::bad_descriptor);
-      else
-      {
-        DWORD bytes_transferred = 0;
-        DWORD recv_flags = flags;
-        StartThreadpoolIo(impl->io);
-        int result = ::WSARecvFrom(impl->socket_, buffers,
-          static_cast<DWORD>(buffer_count),
-          &bytes_transferred, &recv_flags, addr, addrlen, op, 0);
-        DWORD last_error = ::WSAGetLastError();
-        if (last_error == ERROR_PORT_UNREACHABLE)
-          last_error = WSAECONNREFUSED;
-        if (result != 0 && last_error != WSA_IO_PENDING)
+      void start_connect_op(implementation_type &impl, int family, int type,
+        const socket_addr_type *addr, std::size_t addrlen,
+        win_iocp_socket_connect_op_base *op) {
+        // If ConnectEx is available, use that.
+        if (family == NET_TS_OS_DEF(AF_INET)
+          || family == NET_TS_OS_DEF(AF_INET6))
         {
-          CancelThreadpoolIo(impl->io);
-          iocp_service_.on_completion(op, last_error, bytes_transferred);
+          if (connect_ex_fn connect_ex = get_connect_ex(impl, type))
+          {
+            union address_union
+            {
+              socket_addr_type base;
+              sockaddr_in4_type v4;
+              sockaddr_in6_type v6;
+            } a;
+
+            using namespace std; // For memset.
+            memset(&a, 0, sizeof(a));
+            a.base.sa_family = family;
+
+            socket_ops::bind(impl->socket_, &a.base,
+              family == NET_TS_OS_DEF(AF_INET)
+              ? sizeof(a.v4) : sizeof(a.v6), op->ec_);
+            if (op->ec_ && op->ec_ != std::experimental::net::error::invalid_argument)
+            {
+              iocp_service_.post_immediate_completion(op, false);
+              return;
+            }
+
+            op->connect_ex_ = true;
+            iocp_service_.work_started();
+
+            StartThreadpoolIo(impl->io);
+
+            BOOL result = connect_ex(impl->socket_,
+              addr, static_cast<int>(addrlen), 0, 0, 0, op);
+            DWORD last_error = ::WSAGetLastError();
+            if (!result && last_error != WSA_IO_PENDING)
+            {
+              CancelThreadpoolIo(impl->io);
+              iocp_service_.on_completion(op, last_error);
+            }
+            else
+              iocp_service_.on_pending(op);
+            return;
+          }
         }
-        else
-          iocp_service_.on_pending(op);
+        throw std::logic_error("only connectEx supported");
       }
-    }
 
+      void start_receive_from_op(
+          implementation_type & impl, WSABUF * buffers,
+          std::size_t buffer_count, socket_addr_type * addr,
+          socket_base::message_flags flags, int *addrlen, operation *op) {
+        iocp_service_.work_started();
 
-    template <typename MutableBufferSequence, typename Handler>
-    void async_receive_from(implementation_type& impl,
-      const MutableBufferSequence& buffers, endpoint_type& sender_endp,
-      socket_base::message_flags flags, Handler& handler)
-    {
-      // Allocate and construct an operation to wrap the handler.
-      typedef win_iocp_socket_recvfrom_op<
-        MutableBufferSequence, endpoint_type, Handler> op;
-      typename op::ptr p = { std::experimental::net::detail::addressof(handler),
-        op::ptr::allocate(handler), 0 };
-      p.p = new (p.v) op(sender_endp, impl->cancel_token_, buffers, handler);
+        if (!is_open(impl))
+          iocp_service_.on_completion(
+              op, std::experimental::net::error::bad_descriptor);
+        else {
+          DWORD bytes_transferred = 0;
+          DWORD recv_flags = flags;
+          StartThreadpoolIo(impl->io);
+          int result = ::WSARecvFrom(
+              impl->socket_, buffers, static_cast<DWORD>(buffer_count),
+              &bytes_transferred, &recv_flags, addr, addrlen, op, 0);
+          DWORD last_error = ::WSAGetLastError();
+          if (last_error == ERROR_PORT_UNREACHABLE)
+            last_error = WSAECONNREFUSED;
+          if (result != 0 && last_error != WSA_IO_PENDING) {
+            CancelThreadpoolIo(impl->io);
+            iocp_service_.on_completion(op, last_error, bytes_transferred);
+          } else
+            iocp_service_.on_pending(op);
+        }
+      }
 
-      NET_TS_HANDLER_CREATION((io_context_, *p.p, "socket",
-        &impl, impl.socket_, "async_receive_from"));
+      void start_receive_op(
+        implementation_type& impl,
+        WSABUF* buffers, std::size_t buffer_count,
+        socket_base::message_flags flags, bool noop, operation* op)
+      {
+        iocp_service_.work_started();
 
-      buffer_sequence_adapter<std::experimental::net::mutable_buffer,
-        MutableBufferSequence> bufs(buffers);
+        if (noop)
+          iocp_service_.on_completion(op);
+        else if (!is_open(impl))
+          iocp_service_.on_completion(op, std::experimental::net::error::bad_descriptor);
+        else
+        {
+          DWORD bytes_transferred = 0;
+          DWORD recv_flags = flags;
+          StartThreadpoolIo(impl->io);
+          int result = ::WSARecv(impl->socket_, buffers,
+            static_cast<DWORD>(buffer_count),
+            &bytes_transferred, &recv_flags, op, 0);
+          DWORD last_error = ::WSAGetLastError();
+          if (last_error == ERROR_NETNAME_DELETED)
+            last_error = WSAECONNRESET;
+          else if (last_error == ERROR_PORT_UNREACHABLE)
+            last_error = WSAECONNREFUSED;
+          if (result != 0 && last_error != WSA_IO_PENDING) {
+            CancelThreadpoolIo(impl->io);
+            iocp_service_.on_completion(op, last_error, bytes_transferred);
+          }
+          else
+            iocp_service_.on_pending(op);
+        }
+      }
 
-      start_receive_from_op(impl, bufs.buffers(), bufs.count(),
-        sender_endp.data(), flags, &p.p->endpoint_size(), p.p);
-      p.v = p.p = 0;
-    }
+      template <typename MutableBufferSequence, typename Handler>
+      void async_receive_from(
+          implementation_type & impl, const MutableBufferSequence &buffers,
+          endpoint_type &sender_endp, socket_base::message_flags flags,
+          Handler &handler) {
+        // Allocate and construct an operation to wrap the handler.
+        typedef win_iocp_socket_recvfrom_op<MutableBufferSequence,
+                                            endpoint_type, Handler>
+            op;
+        typename op::ptr p = {
+            std::experimental::net::detail::addressof(handler),
+            op::ptr::allocate(handler), 0};
+        p.p = new (p.v) op(sender_endp, impl->cancel_token_, buffers, handler);
 
-    // Start an asynchronous send. The data being sent must be valid for the
-    // lifetime of the asynchronous operation.
-    template <typename ConstBufferSequence, typename Handler>
-    void async_send_to(implementation_type& impl,
-      const ConstBufferSequence& buffers, const endpoint_type& destination,
-      socket_base::message_flags flags, Handler& handler)
-    {
-      // Allocate and construct an operation to wrap the handler.
-      typedef win_iocp_socket_send_op<ConstBufferSequence, Handler> op;
-      typename op::ptr p = { std::experimental::net::detail::addressof(handler),
-        op::ptr::allocate(handler), 0 };
-      p.p = new (p.v) op(impl->cancel_token_, buffers, handler);
+        NET_TS_HANDLER_CREATION((io_context_, *p.p, "socket", &impl,
+                                 impl.socket_, "async_receive_from"));
 
-      NET_TS_HANDLER_CREATION((io_context_, *p.p, "socket",
-        &impl, impl.socket_, "async_send_to"));
+        buffer_sequence_adapter<std::experimental::net::mutable_buffer,
+                                MutableBufferSequence>
+            bufs(buffers);
 
-      buffer_sequence_adapter<std::experimental::net::const_buffer,
-        ConstBufferSequence> bufs(buffers);
+        start_receive_from_op(impl, bufs.buffers(), bufs.count(),
+                              sender_endp.data(), flags, &p.p->endpoint_size(),
+                              p.p);
+        p.v = p.p = 0;
+      }
 
-      start_send_to_op(impl, bufs.buffers(), bufs.count(),
-        destination.data(), static_cast<int>(destination.size()),
-        flags, p.p);
-      p.v = p.p = 0;
-    }
+      template <typename ConstBufferSequence, typename Handler>
+      void async_send(implementation_type& impl,
+        const ConstBufferSequence& buffers,
+        socket_base::message_flags flags, Handler& handler)
+      {
+        // Allocate and construct an operation to wrap the handler.
+        typedef win_iocp_socket_send_op<ConstBufferSequence, Handler> op;
+        typename op::ptr p = { std::experimental::net::detail::addressof(handler),
+          op::ptr::allocate(handler), 0 };
+        p.p = new (p.v) op(impl->cancel_token_, buffers, handler);
 
-    template <typename Handler>
-    void async_accept(implementation_type &impl, io_context *peer_io_context,
-      endpoint_type *peer_endpoint, Handler &handler) {
-      // Allocate and construct an operation to wrap the handler.
-      typedef win_iocp_socket_move_accept_op<io_context_type, protocol_type,
-        Handler, socket_service>
-        op;
-      typename op::ptr p = { std::experimental::net::detail::addressof(handler),
-        op::ptr::allocate(handler), 0 };
-      bool enable_connection_aborted =
-        (impl->state_ & socket_ops::enable_connection_aborted) != 0;
-      p.p = new (p.v)
-        op(*this, impl->socket_, impl->protocol_,
-          peer_io_context ? *peer_io_context : io_context_,
-          peer_endpoint, enable_connection_aborted, handler);
+        NET_TS_HANDLER_CREATION((io_context_, *p.p, "socket",
+          &impl, impl.socket_, "async_send"));
 
-      NET_TS_HANDLER_CREATION(
-        (io_context_, *p.p, "socket", &impl, impl.socket_, "async_accept"));
+        buffer_sequence_adapter<std::experimental::net::const_buffer,
+          ConstBufferSequence> bufs(buffers);
 
-      start_accept_op(impl, false, p.p->new_socket(), impl->protocol_.family(),
-        impl->protocol_.type(), impl->protocol_.protocol(),
-        p.p->output_buffer(), p.p->address_length(), p.p);
-      p.v = p.p = 0;
-    }
+        start_send_op(impl, bufs.buffers(), bufs.count(), flags,
+          (impl->state_ & socket_ops::stream_oriented) != 0 && bufs.all_empty(),
+          p.p);
+        p.v = p.p = 0;
+      }
 
-    template <typename Option>
-    std::error_code set_option(implementation_type &impl, const Option &option,
-      std::error_code &ec) {
-      socket_ops::setsockopt(
-        impl->socket_, impl->state_, option.level(impl->protocol_),
-        option.name(impl->protocol_), option.data(impl->protocol_),
-        option.size(impl->protocol_), ec);
-      return ec;
-    }
+      // Start an asynchronous send. The data being sent must be valid for the
+      // lifetime of the asynchronous operation.
+      template <typename ConstBufferSequence, typename Handler>
+      void async_send_to(implementation_type & impl,
+                         const ConstBufferSequence &buffers,
+                         const endpoint_type &destination,
+                         socket_base::message_flags flags, Handler &handler) {
+        // Allocate and construct an operation to wrap the handler.
+        typedef win_iocp_socket_send_op<ConstBufferSequence, Handler> op;
+        typename op::ptr p = {
+            std::experimental::net::detail::addressof(handler),
+            op::ptr::allocate(handler), 0};
+        p.p = new (p.v) op(impl->cancel_token_, buffers, handler);
 
+        NET_TS_HANDLER_CREATION((io_context_, *p.p, "socket", &impl,
+                                 impl.socket_, "async_send_to"));
+
+        buffer_sequence_adapter<std::experimental::net::const_buffer,
+                                ConstBufferSequence>
+            bufs(buffers);
+
+        start_send_to_op(impl, bufs.buffers(), bufs.count(), destination.data(),
+                         static_cast<int>(destination.size()), flags, p.p);
+        p.v = p.p = 0;
+      }
+
+      template <typename Handler>
+      void async_accept(implementation_type & impl,
+                        io_context * peer_io_context,
+                        endpoint_type * peer_endpoint, Handler & handler) {
+        // Allocate and construct an operation to wrap the handler.
+        typedef win_iocp_socket_move_accept_op<io_context_type, protocol_type,
+                                               Handler, socket_service>
+            op;
+        typename op::ptr p = {
+            std::experimental::net::detail::addressof(handler),
+            op::ptr::allocate(handler), 0};
+        bool enable_connection_aborted =
+            (impl->state_ & socket_ops::enable_connection_aborted) != 0;
+        p.p = new (p.v) op(*this, impl->socket_, impl->protocol_,
+                           peer_io_context ? *peer_io_context : io_context_,
+                           peer_endpoint, enable_connection_aborted, handler);
+
+        NET_TS_HANDLER_CREATION(
+            (io_context_, *p.p, "socket", &impl, impl.socket_, "async_accept"));
+
+        start_accept_op(impl, false, p.p->new_socket(),
+                        impl->protocol_.family(), impl->protocol_.type(),
+                        impl->protocol_.protocol(), p.p->output_buffer(),
+                        p.p->address_length(), p.p);
+        p.v = p.p = 0;
+      }
+
+      // Start an asynchronous connect.
+      template <typename Handler>
+      void async_connect(implementation_type& impl,
+        const endpoint_type& peer_endpoint, Handler& handler)
+      {
+        // Allocate and construct an operation to wrap the handler.
+        typedef win_iocp_socket_connect_op<Handler> op;
+        typename op::ptr p = { std::experimental::net::detail::addressof(handler),
+          op::ptr::allocate(handler), 0 };
+        p.p = new (p.v) op(impl->socket_, handler);
+
+        NET_TS_HANDLER_CREATION((io_context_, *p.p, "socket",
+          &impl, impl.socket_, "async_connect"));
+
+        start_connect_op(impl, impl->protocol_.family(), impl->protocol_.type(),
+          peer_endpoint.data(), static_cast<int>(peer_endpoint.size()), p.p);
+        p.v = p.p = 0;
+      }
+
+      template <typename Option>
+      std::error_code set_option(implementation_type & impl,
+                                 const Option &option, std::error_code &ec) {
+        socket_ops::setsockopt(
+            impl->socket_, impl->state_, option.level(impl->protocol_),
+            option.name(impl->protocol_), option.data(impl->protocol_),
+            option.size(impl->protocol_), ec);
+        return ec;
+      }
+
+      template <typename MutableBufferSequence, typename Handler>
+      void async_receive(implementation_type& impl,
+        const MutableBufferSequence& buffers,
+        socket_base::message_flags flags, Handler& handler)
+      {
+        // Allocate and construct an operation to wrap the handler.
+        typedef win_iocp_socket_recv_op<MutableBufferSequence, Handler> op;
+        typename op::ptr p = { std::experimental::net::detail::addressof(handler),
+          op::ptr::allocate(handler), 0 };
+        p.p = new (p.v) op(impl->state_, impl->cancel_token_, buffers, handler);
+
+        NET_TS_HANDLER_CREATION((io_context_, *p.p, "socket",
+          &impl, impl.socket_, "async_receive"));
+
+        buffer_sequence_adapter<std::experimental::net::mutable_buffer,
+          MutableBufferSequence> bufs(buffers);
+
+        start_receive_op(impl, bufs.buffers(), bufs.count(), flags,
+          (impl->state_ & socket_ops::stream_oriented) != 0 && bufs.all_empty(),
+          p.p);
+        p.v = p.p = 0;
+      }
+
+      // Assign a native socket to a socket implementation.
+      std::error_code assign(implementation_type& impl,
+        const protocol_type& protocol, const native_handle_type& native_socket,
+        std::error_code& ec)
+      {
+#if 0
+        if (!do_assign(impl, protocol.type(), native_socket, ec))
+        {
+          impl.protocol_ = protocol;
+          impl.have_remote_endpoint_ = native_socket.have_remote_endpoint();
+          impl.remote_endpoint_ = native_socket.remote_endpoint();
+        }
+        return ec;
+#endif
+        throw std::logic_error("NYI");
+      }
+
+    private:
+      // Pointer to ConnectEx implementation.
+      void* connect_ex_ = nullptr;
   };
 
 } // namespace detail
