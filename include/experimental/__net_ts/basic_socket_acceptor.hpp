@@ -33,7 +33,10 @@
 # define NET_TS_SVC_T detail::null_socket_service<Protocol>
 #elif defined(NET_TS_HAS_IOCP)
 # include <experimental/__net_ts/detail/win_iocp_socket_service.hpp>
-# define NET_TS_SVC_T detail::win_iocp_socket_service<Protocol>
+# include <experimental/__net_ts/detail/wintp_socket_service.hpp>
+# define NET_TS_SVC_T \
+  detail::win_iocp_socket_service<Protocol>, \
+  detail::wintp_socket_service<Protocol>
 #else
 # include <experimental/__net_ts/detail/reactive_socket_service.hpp>
 # define NET_TS_SVC_T detail::reactive_socket_service<Protocol>
@@ -80,7 +83,10 @@ public:
 #if defined(GENERATING_DOCUMENTATION)
   typedef implementation_defined native_handle_type;
 #else
-  typedef typename NET_TS_SVC_T::native_handle_type native_handle_type;
+  using base = basic_io_object<NET_TS_SVC_T>;
+  using first_service_type = typename base::service_type1;
+  // NB: Assumes that native_handle_type is common for both services.
+  typedef typename first_service_type::native_handle_type native_handle_type;
 #endif
 
   /// The protocol type.
@@ -373,7 +379,7 @@ public:
   NET_TS_SYNC_OP_VOID assign(const protocol_type& protocol,
       const native_handle_type& native_acceptor, std::error_code& ec)
   {
-    this->get_service().assign(this->get_implementation(),
+    NET_TS_SVC_INVOKE(assign,
         protocol, native_acceptor, ec);
     NET_TS_SYNC_OP_VOID_RETURN(ec);
   }

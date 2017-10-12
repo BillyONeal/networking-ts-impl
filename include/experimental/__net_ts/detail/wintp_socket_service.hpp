@@ -544,8 +544,7 @@ namespace detail {
                         io_context * peer_io_context,
                         endpoint_type * peer_endpoint, Handler & handler) {
         // Allocate and construct an operation to wrap the handler.
-        typedef win_iocp_socket_move_accept_op<io_context_type, protocol_type,
-                                               Handler, socket_service>
+        typedef win_iocp_socket_move_accept_op<protocol_type, Handler, socket_service>
             op;
         typename op::ptr p = {
             std::experimental::net::detail::addressof(handler),
@@ -553,7 +552,7 @@ namespace detail {
         bool enable_connection_aborted =
             (impl->state_ & socket_ops::enable_connection_aborted) != 0;
         p.p = new (p.v) op(*this, impl->socket_, impl->protocol_,
-                           peer_io_context ? *peer_io_context : io_context_,
+                           peer_io_context ? *peer_io_context : this->get_io_context(),
                            peer_endpoint, enable_connection_aborted, handler);
 
         NET_TS_HANDLER_CREATION(

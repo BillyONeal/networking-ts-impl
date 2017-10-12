@@ -162,14 +162,14 @@ private:
 
 #if defined(NET_TS_HAS_MOVE)
 
-template <typename Protocol, typename Handler>
-class win_iocp_socket_move_accept_op : public operation
-{
+template <typename Protocol, typename Handler,
+          typename SocketService = win_iocp_socket_service_base>
+class win_iocp_socket_move_accept_op : public operation {
 public:
   NET_TS_DEFINE_HANDLER_PTR(win_iocp_socket_move_accept_op);
 
   win_iocp_socket_move_accept_op(
-      win_iocp_socket_service_base& socket_service, socket_type socket,
+    SocketService& socket_service, socket_type socket,
       const Protocol& protocol, std::experimental::net::io_context& peer_io_context,
       typename Protocol::endpoint* peer_endpoint,
       bool enable_connection_aborted, Handler& handler)
@@ -277,7 +277,7 @@ public:
   }
 
 private:
-  win_iocp_socket_service_base& socket_service_;
+  SocketService& socket_service_;
   socket_type socket_;
   socket_holder new_socket_;
   typename Protocol::socket peer_;
