@@ -89,7 +89,18 @@ void timer_test(const char* name, F run) {
 
 
 #if 1
-  system_timer fast_timer(io, 100000ms);
+  system_timer slow_timer(io, 24h);
+
+  slow_timer.async_wait([&io](auto ec) {
+    if (ec) {
+      printf("slow-timer => %u\n", ec.value());
+      return;
+    }
+    puts("Slow timer fired. You either have a lot of patience or there is a "
+         "bug");
+  });
+
+  system_timer fast_timer(io, 100ms);
 
   fast_timer.async_wait([&io](auto ec) {
     if (ec) {
@@ -99,7 +110,7 @@ void timer_test(const char* name, F run) {
     puts("stopping...");
     io.stop();
   });
-  fast_timer.expires_after(1000ms);
+  //fast_timer.expires_after(1000ms);
   system_timer faster_timer(io, system_clock::now() + 30ms);
   faster_timer.async_wait([&io](auto) { puts("tick"); });
 #endif
@@ -151,8 +162,8 @@ int main() {
     //tcp_socket_test<tp_context>("tp_context", [](auto& io) { io.join(); });
     //post_test<io_context>("io_context", [](auto& io) { run(io, 8); });
     //post_test<tp_context>("tp_context", [](auto& io) { io.join(); });
-    //timer_test<io_context>("io_context", [](auto& io) { run(io, 8);  });
-    //timer_test<tp_context>("tp_context", [](auto& io) { io.join(); });
+    timer_test<io_context>("io_context", [](auto& io) { run(io, 8);  });
+    timer_test<tp_context>("tp_context", [](auto& io) { io.join(); });
     //test<null_context>("null_context", [](auto& io) { io.join(); });
     //printf("%d\n", is_executor<tp_executor>::value);
   }

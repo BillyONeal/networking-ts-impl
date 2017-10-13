@@ -155,6 +155,7 @@
     <ClInclude Include="..\..\include\experimental\__net_ts\basic_waitable_timer.hpp" />
     <ClInclude Include="..\..\include\experimental\__net_ts\detail\cancellable_object_owner.hpp" />
     <ClInclude Include="..\..\include\experimental\__net_ts\detail\op_counter.hpp" />
+    <ClInclude Include="..\..\include\experimental\__net_ts\detail\simple_intrusive_list.hpp" />
     <ClInclude Include="..\..\include\experimental\__net_ts\detail\wintp_mutex.hpp" />
     <ClInclude Include="..\..\include\experimental\__net_ts\detail\wintp_scheduler.hpp" />
     <ClInclude Include="..\..\include\experimental\__net_ts\detail\wintp_socket_service.hpp" />

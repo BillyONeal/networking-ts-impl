@@ -52,6 +52,9 @@
       <Filter>Header Files\__net_ts\detail</Filter>
     </ClInclude>
     <ClInclude Include="cancellable_object_test.h" />
+    <ClInclude Include="..\..\include\experimental\__net_ts\detail\simple_intrusive_list.hpp">
+      <Filter>Header Files\__net_ts\detail</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="vstimer_only.cpp" />

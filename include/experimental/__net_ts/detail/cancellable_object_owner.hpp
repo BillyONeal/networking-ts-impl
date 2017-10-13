@@ -19,6 +19,7 @@
 
 #include <experimental/__net_ts/detail/noncopyable.hpp>
 #include <experimental/__net_ts/detail/object_pool.hpp>
+#include <experimental/__net_ts/detail/simple_intrusive_list.hpp>
 #include <experimental/__net_ts/detail/wintp_mutex.hpp>
 
 #include <experimental/__net_ts/detail/push_options.hpp>
@@ -31,8 +32,7 @@ namespace detail {
 
 // TODO: integrate with object_pool
 
-struct cancellable_object_base {
-  friend class object_pool_access;
+struct cancellable_object_base : simple_intrusive_list_entry {
 
   virtual ~cancellable_object_base() {}
 
@@ -81,33 +81,30 @@ private:
     REF = 2,
   };
 
-  cancellable_object_base *next = nullptr;
-  cancellable_object_base *prev = nullptr;
-
   // Initially have two references. One for the handle to an object,
   // another for being a member of the children list in the owner.
   std::atomic<unsigned> state = NOT_BEING_CANCELLED + 2 * REF;
 };
 
-template <typename Object>
+template <typename T>
 struct cancellabl_object_owner
 {
-  void ParentCancel() {
+  void cancel_all() {
     auto itemsToCancel = extractItemsThatNeedCancelling();
     while (T* item = itemsToCancel.try_pop()) {
-      item->InitiateCancel();
-      item->DropRef("parent");
+      item->initiate_cancel();
+      item->drop_ref("parent");
     }
   }
 
-  void ChildAdd(T* item) noexcept {
+  void add_child(T* item) noexcept {
     bool needCancel = false;
     {
       std::lock_guard<std::mutex> grab(lock);
       if (cancelRequested)
         needCancel = true;
       else
-        list.push_back(item);
+        children.push_back(item);
     }
     if (needCancel) {
       item->InitiateCancel();
@@ -115,31 +112,32 @@ struct cancellabl_object_owner
     }
   }
 
-  void ChildRemove(T* item) {
+  void remove_child(T *item) {
     {
       std::lock_guard<std::mutex> grab(lock);
       item->erase_and_check_if_list_is_empty();
     }
-    item->DropRef("owner", pool);
+    item->drop_ref("owner", pool);
   }
 
   ~cancellabl_object_owner() { puts("OwnerOf: dtor"); }
 
 private:
-  intrusive_stack<T> extractItemsThatNeedCancelling() {
+  simple_intrusive_stack<T> extractItemsThatNeedCancelling() {
     std::lock_guard<std::mutex> grab(lock);
     if (cancelRequested)
       return {};
     cancelRequested = true;
-    return list.extract_if(
-      [](auto *item) { return item->TrySetCancelPending("paren"); });
+    return children.extract_if(
+      [](auto *item) { return item->try_set_cancel_pending("parent"); });
   }
 
 private:
   wintp_mutex lock;
   bool cancelRequested = false;
 
-  object_pool<Object> pool;
+  simple_intrusive_list<T> children;
+  // TODO: integrate with object_pool
 };
 
 } // namespace detail

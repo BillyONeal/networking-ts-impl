@@ -25,6 +25,8 @@
 #include <experimental/__net_ts/detail/noncopyable.hpp>
 #include <experimental/__net_ts/detail/wait_handler.hpp>
 #include <experimental/__net_ts/detail/wait_op.hpp>
+#include <experimental/__net_ts/detail/simple_intrusive_list.hpp>
+#include <experimental/__net_ts/detail/cancellable_object_owner.hpp>
 
 #include <chrono>
 
@@ -39,6 +41,7 @@ namespace detail {
 template <typename Time_Traits>
 class wintp_timer_service
   : public service_base<wintp_timer_service<Time_Traits> >
+  ,
 {
   using hundreds_nano = ratio_multiply<ratio<100, 1>, nano>;
   using nt_ticks = chrono::duration<long long, hundreds_nano>;
