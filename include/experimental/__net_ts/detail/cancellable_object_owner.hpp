@@ -40,7 +40,7 @@ struct cancellable_object_base : simple_intrusive_list_entry {
     auto oldValue =
         state.fetch_and(~NOT_BEING_CANCELLED, std::memory_order_acq_rel);
     bool firstToCancel = (oldValue & NOT_BEING_CANCELLED) != 0;
-    printf("%s: first-to-cancel %d\n", name, firstToCancel);
+    //printf("%s: first-to-cancel %d\n", name, firstToCancel);
     return firstToCancel;
   }
 
@@ -64,14 +64,13 @@ struct cancellable_object_base : simple_intrusive_list_entry {
   // returns true if no more refs
   bool drop_ref_internal(char const* name) {
     auto newValue = state.fetch_sub(REF, std::memory_order_acq_rel) - REF;
-    printf("%s: deref => %d\n", name, newValue / REF);
+    //printf("%s: deref => %d\n", name, newValue / REF);
     return (newValue == 0);
   }
 
-  template <typename Object>
-  void drop_ref(char const* name, object_pool<Object>& pool) {
+  void drop_ref(char const* name) {
     if (drop_ref_internal(name)) {
-      pool.free(static_cast<Object*>(this));
+      delete this; // TODO: hookup object pool
     }
   }
 
@@ -87,53 +86,67 @@ private:
 };
 
 template <typename T>
-struct cancellabl_object_owner
+struct cancellable_object_owner
 {
-  void cancel_all() {
-    auto itemsToCancel = extractItemsThatNeedCancelling();
+  bool cancel_all(const char* label = "parent") {
+    bool already_requested = false;
+    auto itemsToCancel = extractItemsThatNeedCancelling(label, already_requested);
+    if (already_requested)
+      return false;
+
     while (T* item = itemsToCancel.try_pop()) {
       item->initiate_cancel();
-      item->drop_ref("parent");
+      item->drop_ref(label);
     }
+    return true;
   }
 
   void add_child(T* item) noexcept {
     bool needCancel = false;
     {
-      std::lock_guard<std::mutex> grab(lock);
+      std::lock_guard<wintp_mutex> grab(lock);
       if (cancelRequested)
         needCancel = true;
       else
         children.push_back(item);
     }
     if (needCancel) {
-      item->InitiateCancel();
-      item->DropRef("owner");
+      item->initiate_cancel();
+      item->drop_ref("owner");
     }
   }
 
   void remove_child(T *item) {
     {
-      std::lock_guard<std::mutex> grab(lock);
+      std::lock_guard<wintp_mutex> grab(lock);
       item->erase_and_check_if_list_is_empty();
     }
-    item->drop_ref("owner", pool);
+    item->drop_ref("owner");
   }
 
-  ~cancellabl_object_owner() { puts("OwnerOf: dtor"); }
+  //~cancellable_object_owner() { puts("OwnerOf: dtor"); }
+
+  bool cancelled() const {
+    std::lock_guard<wintp_mutex> grab(lock);
+    return cancelRequested;
+  }
 
 private:
-  simple_intrusive_stack<T> extractItemsThatNeedCancelling() {
-    std::lock_guard<std::mutex> grab(lock);
-    if (cancelRequested)
+  simple_intrusive_stack<T>
+  extractItemsThatNeedCancelling(const char *label, bool &already_requested) {
+    std::lock_guard<wintp_mutex> grab(lock);
+    if (cancelRequested) {
+      already_requested = true;
       return {};
+    }
+    already_requested = false;
     cancelRequested = true;
     return children.extract_if(
-      [](auto *item) { return item->try_set_cancel_pending("parent"); });
+      [label](auto *item) { return item->try_set_cancel_pending(label); });
   }
 
 private:
-  wintp_mutex lock;
+  mutable wintp_mutex lock;
   bool cancelRequested = false;
 
   simple_intrusive_list<T> children;

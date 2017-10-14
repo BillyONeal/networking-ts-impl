@@ -27,6 +27,7 @@
 #include <experimental/__net_ts/detail/wait_op.hpp>
 #include <experimental/__net_ts/detail/simple_intrusive_list.hpp>
 #include <experimental/__net_ts/detail/cancellable_object_owner.hpp>
+#include <experimental/__net_ts/detail/wintp_scheduler.hpp>
 
 #include <chrono>
 
@@ -41,7 +42,7 @@ namespace detail {
 template <typename Time_Traits>
 class wintp_timer_service
   : public service_base<wintp_timer_service<Time_Traits> >
-  ,
+  , public cancellable_service
 {
   using hundreds_nano = ratio_multiply<ratio<100, 1>, nano>;
   using nt_ticks = chrono::duration<long long, hundreds_nano>;
@@ -53,14 +54,15 @@ public:
   // The duration type.
   typedef typename Time_Traits::duration_type duration_type;
 
-  struct timer_impl {
-    explicit timer_impl(wintp_scheduler &scheduler)
-      : timer(CreateThreadpoolTimer(
-        [](auto, void *ctx, auto) {
-      static_cast<timer_impl *>(ctx)->invoke();
-    },
-        this, nullptr)),
-      scheduler(scheduler) {
+  struct timer_impl : cancellable_object_base {
+    explicit timer_impl(wintp_timer_service &service,
+                        wintp_scheduler &scheduler)
+        : timer(CreateThreadpoolTimer(
+              [](auto, void *ctx, auto) {
+                static_cast<timer_impl *>(ctx)->invoke();
+              },
+              this, nullptr)),
+          service(service), scheduler(scheduler) {
       // TODO: more detailed error codes
       if (!timer)
         throw std::bad_alloc();
@@ -92,9 +94,39 @@ public:
       }
     }
 
-    ~timer_impl() { CloseThreadpoolTimer(timer); }
+    std::size_t soft_cancel()
+    {
+      std::lock_guard<win_mutex> grab(m);
+      if (ops_.empty())
+        return 0;
+
+      std::size_t count = 0;
+      ops_.for_each([&](wait_op *op) {
+        ++count;
+        op->ec_ = error::operation_aborted;
+      });
+
+      cancelled_ops_.push(ops_);
+      if (SetThreadpoolTimerEx(timer, nullptr, 0, 0)) {
+        // timer will not fire. Move all of the cancelled ops to the
+        // scheduler.
+        scheduler.reserved_post(cancelled_ops_);
+      }
+
+      return count;
+    }
+
+    void initiate_cancel() {
+      soft_cancel();
+    }
+
+    ~timer_impl() {
+      WaitForThreadpoolTimerCallbacks(timer, false);
+      CloseThreadpoolTimer(timer);
+    }
 
     PTP_TIMER timer = nullptr;
+    wintp_timer_service &service;
     wintp_scheduler &scheduler;
 
     win_mutex m;
@@ -106,30 +138,49 @@ public:
   // The implementation type of the timer. This type is dependent on the
   // underlying implementation of the timer service.
   // FIXME: use object_pool
-  using implementation_type = std::unique_ptr<timer_impl>;
+  using implementation_type = timer_impl*;
 
   wintp_timer_service(io_context &io_context)
       : service_base<wintp_timer_service<Time_Traits>>(io_context),
-        tp(dynamic_cast<tp_context&>(io_context)) {}
+        tp(dynamic_cast<tp_context&>(io_context)) {
+
+    tp.scheduler().add_child(this);
+  }
 
   ~wintp_timer_service() {
+    // No need to remove here, will be removed due to cancellation
+    // tp.scheduler().remove_child(this);
     // FIXME: Verify that there is no outstanding timers
+  }
+
+  void initiate_cancel() override {
+//    if (try_set_cancel_pending("timer_service")) {
+    owner.cancel_all("timer_service");
+  }
+
+  void cancel() {
+    if (try_set_cancel_pending("timer_service::shutdown")) {
+      initiate_cancel();
+      tp.scheduler().remove_child(this);
+    }
   }
 
   // Destroy all user-defined handler objects owned by the service.
   void shutdown()
   {
+    // should wait for all to finish.
+    cancel();
   }
 
-
   void destroy(implementation_type &impl) {
-    std::error_code ec;
-    cancel(impl, ec);
-    impl.reset();
+    impl->initiate_cancel();
+    impl->drop_ref("handle");
   }
 
   void construct(implementation_type &t) {
-    t = make_unique<timer_impl>(tp.scheduler());
+    auto p = make_unique<timer_impl>(*this, tp.scheduler());
+    owner.add_child(p.get());
+    t = p.release();
   }
 
   // Move-construct a new serial port implementation.
@@ -147,26 +198,9 @@ public:
   }
 
   // Cancel any asynchronous wait operations associated with the timer.
-  std::size_t cancel(implementation_type& impl, std::error_code& ec)
-  {
-    std::lock_guard<win_mutex> grab(impl->m);
-    if (impl->ops_.empty())
-      return 0;
-
-    std::size_t count = 0;
-    impl->ops_.for_each([&](wait_op *op) {
-      ++count;
-      op->ec_ = error::operation_aborted;
-    });
-
-    impl->cancelled_ops_.push(impl->ops_);
-    if (SetThreadpoolTimerEx(impl->timer, nullptr, 0, 0)) {
-      // timer will not fire. Move all of the cancelled ops to the
-      // scheduler.
-      tp.scheduler().reserved_post(impl->cancelled_ops_);
-    }
-
-    return count;
+  std::size_t cancel(implementation_type& impl, std::error_code& ec) {
+    ec = {};
+    return impl->soft_cancel();
   }
 
   // Cancels one asynchronous wait operation associated with the timer.
@@ -259,6 +293,7 @@ private:
     tp.scheduler().reserved_post(op);
   }
 private:
+  cancellable_object_owner<timer_impl> owner;
   tp_context& tp;
 };
 

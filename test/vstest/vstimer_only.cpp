@@ -52,8 +52,9 @@ void timer_test(const char* name, F run) {
 
   printf("testing %s ...\n", name);
   IoContext io;
-#if 1
-  system_timer unused_timer1(io);
+#if 0
+  system_timer simple_timer(io, 100ms);
+  simple_timer.async_wait([](auto ec) {printf("tick %d\n", ec.value()); });
 #endif
 
 #if 0
@@ -160,10 +161,10 @@ int main() {
     //udp_socket_test<io_context>("io_context", [](auto& io) { run(io, 8); });
     //tcp_socket_test<io_context>("io_context", [](auto& io) { run(io, 8); });
     //tcp_socket_test<tp_context>("tp_context", [](auto& io) { io.join(); });
-    //post_test<io_context>("io_context", [](auto& io) { run(io, 8); });
-    //post_test<tp_context>("tp_context", [](auto& io) { io.join(); });
-    timer_test<io_context>("io_context", [](auto& io) { run(io, 8);  });
-    timer_test<tp_context>("tp_context", [](auto& io) { io.join(); });
+    post_test<io_context>("io_context", [](auto& io) { run(io, 8); });
+    post_test<tp_context>("tp_context", [](auto& io) { io.join(); });
+    //timer_test<io_context>("io_context", [](auto& io) { run(io, 8);  });
+    //timer_test<tp_context>("tp_context", [](auto& io) { io.join(); });
     //test<null_context>("null_context", [](auto& io) { io.join(); });
     //printf("%d\n", is_executor<tp_executor>::value);
   }

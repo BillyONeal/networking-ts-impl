@@ -27,6 +27,8 @@
 #include <experimental/__net_ts/detail/op_queue.hpp>
 #include <experimental/__net_ts/detail/op_counter.hpp>
 #include <experimental/__net_ts/detail/wintp_mutex.hpp>
+#include <experimental/__net_ts/detail/simple_intrusive_list.hpp>
+#include <experimental/__net_ts/detail/cancellable_object_owner.hpp>
 #include <experimental/__net_ts/detail/push_options.hpp>
 
 namespace std {
@@ -35,7 +37,14 @@ namespace net {
 inline namespace v1 {
 namespace detail {
 
-struct wintp_scheduler : public service_base<wintp_scheduler> {
+struct cancellable_service : cancellable_object_base
+{
+  virtual void initiate_cancel() = 0;
+};
+
+struct wintp_scheduler : public service_base<wintp_scheduler>,
+                         public cancellable_object_owner<cancellable_service>
+{
   wintp_scheduler(io_context &io, PTP_CALLBACK_ENVIRON env = nullptr)
       : service_base(io), env(nullptr),
         work(CreateThreadpoolWork(
@@ -124,11 +133,13 @@ public:
   }
 
   ~wintp_scheduler() {
+    cancel_all("wintp_scheduler");
     // FIXME: check for all outstanding work, not just what is currently
     // running.
     WaitForThreadpoolWorkCallbacks(work, /*cancel=*/true);
     CloseThreadpoolWork(work);
   }
+
 private:
   PTP_CALLBACK_ENVIRON env;
   PTP_WORK work;

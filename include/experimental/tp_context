@@ -80,11 +80,9 @@ public:
 
   NET_TS_DECL count_type poll_one() = delete;
 
-  // FIXME: Hookup stop
-  NET_TS_DECL void stop() {
-  } // = delete; // use cancel
+  NET_TS_DECL void stop() { scheduler().cancel_all("tp_context"); }
 
-  NET_TS_DECL bool stopped() const = delete;
+  NET_TS_DECL bool stopped() const { return scheduler().cancelled(); }
 
   NET_TS_DECL void restart() = delete;
 
@@ -154,6 +152,7 @@ public:
   };
 
   impl_type& scheduler() { return impl; }
+  impl_type const& scheduler() const { return impl; }
 
 private:
   // The implementation.
