@@ -55,6 +55,9 @@
     <ClInclude Include="..\..\include\experimental\__net_ts\detail\simple_intrusive_list.hpp">
       <Filter>Header Files\__net_ts\detail</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\include\experimental\__net_ts\basic_io_object.hpp">
+      <Filter>Header Files\__net_ts\detail</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="vstimer_only.cpp" />

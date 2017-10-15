@@ -25,6 +25,7 @@ struct simple_intrusive_list_base {
       entry *const next_entry = this->next;
       prev_entry->next = next_entry;
       next_entry->prev = prev_entry;
+      this->prev = this->next = nullptr;
       return next_entry == prev_entry;
     }
   };

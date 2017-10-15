@@ -56,6 +56,8 @@ struct wintp_scheduler : public service_base<wintp_scheduler>,
       throw std::bad_alloc();
   }
 
+  bool force_work_started() { return !counter.force_inc(); }
+
   // Notify that some work has started.
   void work_started() {
     if (!counter.try_inc())
@@ -84,6 +86,7 @@ private:
   }
 
 public:
+
   void reserved_post(operation *op) {
     {
       std::lock_guard<wintp_mutex> grab(lock);

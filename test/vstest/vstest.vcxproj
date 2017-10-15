@@ -151,6 +151,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\experimental\__net_ts\basic_datagram_socket.hpp" />
+    <ClInclude Include="..\..\include\experimental\__net_ts\basic_io_object.hpp" />
     <ClInclude Include="..\..\include\experimental\__net_ts\basic_socket.hpp" />
     <ClInclude Include="..\..\include\experimental\__net_ts\basic_waitable_timer.hpp" />
     <ClInclude Include="..\..\include\experimental\__net_ts\detail\cancellable_object_owner.hpp" />

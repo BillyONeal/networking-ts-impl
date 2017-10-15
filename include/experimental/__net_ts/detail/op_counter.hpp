@@ -38,6 +38,10 @@ struct op_counter {
       fnCancel();
   }
 
+  bool force_inc() {
+    return (counter.fetch_add(INC, std::memory_order_acq_rel) & NO_CANCEL);
+  }
+
   bool try_inc() {
     if (counter.fetch_add(INC, std::memory_order_acq_rel) & NO_CANCEL) {
       dump("try_inc");

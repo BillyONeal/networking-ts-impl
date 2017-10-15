@@ -108,9 +108,13 @@ namespace detail {
         }
       }
 
+      socket_impl(socket_impl const&) = delete;
+      socket_impl(socket_impl &&) = delete;
       socket_impl(wintp_socket_service& service) : service(service) {}
 
       ~socket_impl() {
+        cancel();
+
         if (io) {
           WaitForThreadpoolIoCallbacks(io, false);
           CloseThreadpoolIo(io);
@@ -230,7 +234,13 @@ namespace detail {
       }
 
       struct tpio_service {
-        void work_started() { scheduler.work_started(); }
+        bool work_started(win_iocp_operation *op) {
+          if (!scheduler.force_work_started()) {
+            on_completion(op, ERROR_OPERATION_ABORTED);
+            return false;
+          }
+          return true;
+        }
         void on_completion(win_iocp_operation *op, DWORD last_error = 0,
                            DWORD bytes_transferred = 0) {
 
@@ -255,7 +265,7 @@ namespace detail {
 
         void post_immediate_completion(win_iocp_operation* op, bool)
         {
-          work_started();
+          scheduler.work_started();
           on_completion(op);
         }
 
@@ -335,7 +345,8 @@ namespace detail {
                            socket_holder &new_socket, int family, int type,
                            int protocol, void *output_buffer,
                            DWORD address_length, operation *op) {
-        iocp_service_.work_started();
+        if (!iocp_service_.work_started(op))
+          return;
 
         if (!is_open(impl))
           iocp_service_.on_completion(
@@ -389,7 +400,8 @@ namespace detail {
         WSABUF* buffers, std::size_t buffer_count,
         socket_base::message_flags flags, bool noop, operation* op)
       {
-        iocp_service_.work_started();
+        if (!iocp_service_.work_started(op))
+          return;
 
         if (noop)
           iocp_service_.on_completion(op);
@@ -420,7 +432,8 @@ namespace detail {
                             std::size_t buffer_count,
                             const socket_addr_type *addr, int addrlen,
                             socket_base::message_flags flags, operation *op) {
-        iocp_service_.work_started();
+        if (!iocp_service_.work_started(op))
+          return;
 
         if (!is_open(impl))
           iocp_service_.on_completion(
@@ -474,7 +487,8 @@ namespace detail {
             }
 
             op->connect_ex_ = true;
-            iocp_service_.work_started();
+            if (!iocp_service_.work_started(op))
+              return;
 
             if (!StartThreadpoolIo(impl, op))
               return;
@@ -499,7 +513,8 @@ namespace detail {
           implementation_type & impl, WSABUF * buffers,
           std::size_t buffer_count, socket_addr_type * addr,
           socket_base::message_flags flags, int *addrlen, operation *op) {
-        iocp_service_.work_started();
+        if (!iocp_service_.work_started(op))
+          return;
 
         if (!is_open(impl))
           iocp_service_.on_completion(
@@ -543,7 +558,8 @@ namespace detail {
         WSABUF* buffers, std::size_t buffer_count,
         socket_base::message_flags flags, bool noop, operation* op)
       {
-        iocp_service_.work_started();
+        if (!iocp_service_.work_started(op))
+          return;
 
         if (noop)
           iocp_service_.on_completion(op);
