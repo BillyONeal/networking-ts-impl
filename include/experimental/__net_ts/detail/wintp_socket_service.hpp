@@ -111,8 +111,10 @@ namespace detail {
       socket_impl(wintp_socket_service& service) : service(service) {}
 
       ~socket_impl() {
-        if (io)
+        if (io) {
+          WaitForThreadpoolIoCallbacks(io, false);
           CloseThreadpoolIo(io);
+        }
 
         std::error_code ec;
         if (socket_ != invalid_socket)
@@ -126,9 +128,11 @@ namespace detail {
 
     // FIXME: use object_pool
     void destroy(implementation_type &t) {
-      t->cancel();
-      t->drop_ref("Handle");
-      t = nullptr;
+      if (t) {
+        t->cancel();
+        t->drop_ref("Handle");
+        t = nullptr;
+      }
     }
 
     void construct(implementation_type &t) {
@@ -142,6 +146,7 @@ namespace detail {
     void move_construct(implementation_type &x, implementation_type &y)
     {
       x = std::move(y);
+      y = nullptr;
     }
 
     connect_ex_fn get_connect_ex(implementation_type &impl, int type)
@@ -348,7 +353,7 @@ namespace detail {
             if (!StartThreadpoolIo(impl, op))
               return;
 
-            BOOL result ::AcceptEx(impl->socket_, new_socket.get(), output_buffer, 0,
+            BOOL result = ::AcceptEx(impl->socket_, new_socket.get(), output_buffer, 0,
                            address_length, address_length, &bytes_read, op);
             DWORD last_error = ::WSAGetLastError();
             if (!result && last_error != WSA_IO_PENDING) {
@@ -393,7 +398,7 @@ namespace detail {
         else
         {
           DWORD bytes_transferred = 0;
-          if (!StartThreadpoolIo(impl))
+          if (!StartThreadpoolIo(impl, op))
             return;
 
           int result = ::WSASend(impl->socket_, buffers,
@@ -471,7 +476,7 @@ namespace detail {
             op->connect_ex_ = true;
             iocp_service_.work_started();
 
-            if (!StartThreadpoolIo(impl))
+            if (!StartThreadpoolIo(impl, op))
               return;
 
             BOOL result = connect_ex(impl->socket_, addr,
