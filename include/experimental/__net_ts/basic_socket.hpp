@@ -446,7 +446,7 @@ public:
    */
   native_handle_type native_handle()
   {
-    return this->get_service().native_handle(this->get_implementation());
+    return NET_TS_SVC_INVOKE_(native_handle);
   }
 
   /// Cancel all asynchronous operations associated with the socket.

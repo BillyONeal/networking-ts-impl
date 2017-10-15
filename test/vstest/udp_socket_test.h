@@ -122,12 +122,18 @@ public:
       bytes_read_ += n;
       start_write();
     }
+    else {
+      printf("read got error %d\n", err.value());
+    }
   }
 
   void handle_write(std::error_code err, size_t n) {
     if (!err) {
       bytes_written_ += n;
       start_receive();
+    }
+    else {
+      printf("write got error %d\n", err.value());
     }
   }
 
@@ -160,6 +166,7 @@ public:
       udp_stats stats(timeout);
       stats.add(bytes_written_, bytes_read_);
       stats.print();
+      printf("stopping...\n");
       io_context_.stop();
     });
 
@@ -206,7 +213,6 @@ void udp_socket_test(const char* label, F run)
 
     udp_server<IoContext> s(ioc, ep, block_size);
     udp_client<IoContext> c(ioc, ep, block_size, timeout);
-    //udp_client<IoContext> c(ioc, ep, block_size, session_count, timeout);
 
     run(ioc);
 

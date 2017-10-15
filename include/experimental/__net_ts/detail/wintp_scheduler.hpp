@@ -132,6 +132,11 @@ public:
     join_cv.wait(lk, [this] { return join_done; });
   }
 
+  void cancel_all(const char* label) {
+    counter.cancel();
+    cancellable_object_owner::cancel_all(label);
+  }
+
   ~wintp_scheduler() {
     cancel_all("wintp_scheduler");
     // FIXME: check for all outstanding work, not just what is currently
