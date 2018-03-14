@@ -125,7 +125,7 @@ using namespace std::experimental::net;
 
 extern void not_inline_check();
 
-void run(io_context& ioc, int thread_count) {
+void run(io_context_runner& ioc, int thread_count) {
   std::vector<std::thread> threads;
   threads.reserve(thread_count);
   while (--thread_count > 0) {
@@ -157,7 +157,7 @@ int main() {
     not_inline_check();
     cancellable_object_test();
     //udp_socket_test<tp_context>("tp_context", [](auto& io) { io.join(); });
-    udp_socket_test<io_context>("io_context", [](auto& io) { run(io, 8); });
+    udp_socket_test<io_context_runner>("io_context", [](auto& io) { run(io, 8); });
     //udp_socket_test<tp_context>("tp_context", [](auto& io) { io.join(); });
     //udp_socket_test<io_context>("io_context", [](auto& io) { run(io, 8); });
     //udp_socket_test<io_context>("io_context", [](auto& io) { run(io, 8); });

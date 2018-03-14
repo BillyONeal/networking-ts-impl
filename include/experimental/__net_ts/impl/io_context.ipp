@@ -36,29 +36,29 @@ namespace experimental {
 namespace net {
 inline namespace v1 {
 
-io_context::io_context()
+io_context_runner::io_context_runner()
   : impl_(add_impl(new impl_type(*this, NET_TS_CONCURRENCY_HINT_DEFAULT)))
 {
 }
 
-io_context::io_context(int concurrency_hint)
+io_context_runner::io_context_runner(int concurrency_hint)
   : impl_(add_impl(new impl_type(*this, concurrency_hint == 1
           ? NET_TS_CONCURRENCY_HINT_1 : concurrency_hint)))
 {
 }
 
-io_context::impl_type& io_context::add_impl(io_context::impl_type* impl)
+io_context_runner::impl_type& io_context_runner::add_impl(io_context_runner::impl_type* impl)
 {
   std::experimental::net::detail::scoped_ptr<impl_type> scoped_impl(impl);
   std::experimental::net::add_service<impl_type>(*this, scoped_impl.get());
   return *scoped_impl.release();
 }
 
-io_context::~io_context()
+io_context_runner::~io_context_runner()
 {
 }
 
-io_context::count_type io_context::run()
+io_context_runner::count_type io_context_runner::run()
 {
   std::error_code ec;
   count_type s = impl_.run(ec);
@@ -66,7 +66,7 @@ io_context::count_type io_context::run()
   return s;
 }
 
-io_context::count_type io_context::run_one()
+io_context::count_type io_context_runner::run_one()
 {
   std::error_code ec;
   count_type s = impl_.run_one(ec);
@@ -74,7 +74,7 @@ io_context::count_type io_context::run_one()
   return s;
 }
 
-io_context::count_type io_context::poll()
+io_context::count_type io_context_runner::poll()
 {
   std::error_code ec;
   count_type s = impl_.poll(ec);
@@ -82,7 +82,7 @@ io_context::count_type io_context::poll()
   return s;
 }
 
-io_context::count_type io_context::poll_one()
+io_context::count_type io_context_runner::poll_one()
 {
   std::error_code ec;
   count_type s = impl_.poll_one(ec);
@@ -90,17 +90,17 @@ io_context::count_type io_context::poll_one()
   return s;
 }
 
-void io_context::stop()
+void io_context_runner::stop()
 {
   impl_.stop();
 }
 
-bool io_context::stopped() const
+bool io_context_runner::stopped() const
 {
   return impl_.stopped();
 }
 
-void io_context::restart()
+void io_context_runner::restart()
 {
   impl_.restart();
 }

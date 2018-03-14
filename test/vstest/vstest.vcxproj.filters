@@ -11,6 +11,9 @@
     <Filter Include="Header Files\__net_ts\detail">
       <UniqueIdentifier>{ee8a635d-cdae-4063-993f-8379c335aef0}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\__net_ts\impl">
+      <UniqueIdentifier>{2ca3a2be-f995-46c4-b4a7-0db6450d19db}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="handler_allocator.hpp" />
@@ -58,6 +61,12 @@
     <ClInclude Include="..\..\include\experimental\__net_ts\basic_io_object.hpp">
       <Filter>Header Files\__net_ts\detail</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\include\experimental\__net_ts\io_context.hpp">
+      <Filter>Header Files\__net_ts</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\experimental\__net_ts\impl\io_context.hpp">
+      <Filter>Header Files\__net_ts\impl</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="vstimer_only.cpp" />
@@ -90,6 +99,9 @@
     </None>
     <None Include="..\..\include\experimental\tp_context">
       <Filter>Header Files</Filter>
+    </None>
+    <None Include="..\..\include\experimental\__net_ts\impl\io_context.ipp">
+      <Filter>Header Files\__net_ts\impl</Filter>
     </None>
   </ItemGroup>
 </Project>

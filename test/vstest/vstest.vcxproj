@@ -163,6 +163,8 @@
     <ClInclude Include="..\..\include\experimental\__net_ts\detail\wintp_timer_service.hpp" />
     <ClInclude Include="..\..\include\experimental\__net_ts\detail\win_iocp_socket_service.hpp" />
     <ClInclude Include="..\..\include\experimental\__net_ts\detail\win_iocp_socket_service_base.hpp" />
+    <ClInclude Include="..\..\include\experimental\__net_ts\impl\io_context.hpp" />
+    <ClInclude Include="..\..\include\experimental\__net_ts\io_context.hpp" />
     <ClInclude Include="cancellable_object_test.h" />
     <ClInclude Include="handler_allocator.hpp" />
     <ClInclude Include="op_counter.h" />
@@ -184,6 +186,7 @@
     <None Include="..\..\include\experimental\socket" />
     <None Include="..\..\include\experimental\timer" />
     <None Include="..\..\include\experimental\tp_context" />
+    <None Include="..\..\include\experimental\__net_ts\impl\io_context.ipp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -52,6 +52,55 @@ namespace detail {
 #endif
 } // namespace detail
 
+class tp_context;
+class io_context_runner;
+
+class io_context
+  : public execution_context
+{
+  union context_t {
+    io_context_runner *io;
+    tp_context* tp;
+  };
+
+  context_t impl;
+
+public:
+  struct executor_type;
+  friend struct executor_type;
+
+
+  class service;
+
+  virtual int get_meta() = 0;
+
+  /// The type used to count the number of handlers executed by the context.
+  typedef std::size_t count_type;
+
+protected:
+  /// Constructor.
+  NET_TS_DECL io_context() {}
+
+  virtual NET_TS_DECL ~io_context() {}
+
+public:
+
+  executor_type get_executor() NET_TS_NOEXCEPT;
+
+  virtual void stop() = 0;
+
+  virtual bool stopped() const = 0;
+
+private:
+
+#if defined(NET_TS_WINDOWS) || defined(__CYGWIN__)
+  detail::winsock_init<> init_;
+#elif defined(__sun) || defined(__QNX__) || defined(__hpux) || defined(_AIX) \
+  || defined(__osf__)
+  detail::signal_init<> init_;
+#endif
+};
+
 /// Provides core I/O functionality.
 /**
  * The io_context class provides the core I/O functionality for users of the
@@ -149,14 +198,16 @@ namespace detail {
  * ...
  * work.reset(); // Allow run() to exit. @endcode
  */
-class io_context
-  : public execution_context
+class io_context_runner
+  : public io_context
 {
 private:
   typedef detail::io_context_impl impl_type;
 #if defined(NET_TS_HAS_IOCP)
   friend class detail::win_iocp_overlapped_ptr;
 #endif
+
+  friend class io_context;
 
 public:
   class executor_type;
@@ -170,7 +221,7 @@ public:
   typedef std::size_t count_type;
 
   /// Constructor.
-  NET_TS_DECL io_context();
+  NET_TS_DECL io_context_runner();
 
   /// Constructor.
   /**
@@ -179,7 +230,7 @@ public:
    * @param concurrency_hint A suggestion to the implementation on how many
    * threads it should allow to run simultaneously.
    */
-  NET_TS_DECL explicit io_context(int concurrency_hint);
+  NET_TS_DECL explicit io_context_runner(int concurrency_hint);
 
   /// Destructor.
   /**
@@ -213,7 +264,7 @@ public:
    * destructor defined above destroys all handlers, causing all @c shared_ptr
    * references to all connection objects to be destroyed.
    */
-  NET_TS_DECL ~io_context();
+  NET_TS_DECL ~io_context_runner();
 
   /// Obtains the executor associated with the io_context.
   executor_type get_executor() NET_TS_NOEXCEPT;
@@ -385,7 +436,7 @@ private:
   // Backwards compatible overload for use with services derived from
   // io_context::service.
   template <typename Service>
-  friend Service& use_service(io_context& ioc);
+  friend Service& use_service(io_context_runner& ioc);
 
 #if defined(NET_TS_WINDOWS) || defined(__CYGWIN__)
   detail::winsock_init<> init_;
@@ -399,11 +450,11 @@ private:
 };
 
 /// Executor used to submit functions to an io_context.
-class io_context::executor_type
+class io_context_runner::executor_type
 {
 public:
   /// Obtain the underlying execution context.
-  io_context& context() const NET_TS_NOEXCEPT;
+  io_context_runner& context() const NET_TS_NOEXCEPT;
 
   /// Inform the io_context that it has some outstanding work to do.
   /**
@@ -502,13 +553,13 @@ public:
   }
 
 private:
-  friend class io_context;
+  friend class io_context_runner;
 
   // Constructor.
-  explicit executor_type(io_context& i) : io_context_(i) {}
+  explicit executor_type(io_context_runner& i) : io_context_(i) {}
 
   // The underlying io_context.
-  io_context& io_context_;
+  io_context_runner& io_context_;
 };
 
 /// Base class for all io_context services.

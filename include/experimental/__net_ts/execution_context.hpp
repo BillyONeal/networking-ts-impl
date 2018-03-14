@@ -31,10 +31,11 @@ inline namespace v1 {
 
 class execution_context;
 class io_context;
+class io_context_runner;
 
 #if !defined(GENERATING_DOCUMENTATION)
 template <typename Service> Service& use_service(execution_context&);
-template <typename Service> Service& use_service(io_context&);
+template <typename Service> Service& use_service(io_context_runner&);
 template <typename Service> void add_service(execution_context&, Service*);
 template <typename Service> bool has_service(execution_context&);
 #endif // !defined(GENERATING_DOCUMENTATION)

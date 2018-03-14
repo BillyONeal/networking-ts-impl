@@ -29,17 +29,17 @@ namespace detail {
 class resolver_service_base::work_io_context_runner
 {
 public:
-  work_io_context_runner(std::experimental::net::io_context& io_context)
+  work_io_context_runner(std::experimental::net::io_context_runner& io_context)
     : io_context_(io_context) {}
   void operator()() { io_context_.run(); }
 private:
-  std::experimental::net::io_context& io_context_;
+  std::experimental::net::io_context_runner& io_context_;
 };
 
 resolver_service_base::resolver_service_base(
     std::experimental::net::io_context& io_context)
   : io_context_impl_(std::experimental::net::use_service<io_context_impl>(io_context)),
-    work_io_context_(new std::experimental::net::io_context(-1)),
+    work_io_context_(new std::experimental::net::io_context_runner(-1)),
     work_io_context_impl_(std::experimental::net::use_service<
         io_context_impl>(*work_io_context_)),
     work_(std::experimental::net::make_work_guard(*work_io_context_)),

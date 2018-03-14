@@ -118,14 +118,14 @@ private:
   std::experimental::net::detail::mutex mutex_;
 
   // Private io_context used for performing asynchronous host resolution.
-  std::experimental::net::detail::scoped_ptr<std::experimental::net::io_context> work_io_context_;
+  std::experimental::net::detail::scoped_ptr<std::experimental::net::io_context_runner> work_io_context_;
 
   // The work io_context implementation used to post completions.
   io_context_impl& work_io_context_impl_;
 
   // Work for the private io_context to perform.
   std::experimental::net::executor_work_guard<
-      std::experimental::net::io_context::executor_type> work_;
+      std::experimental::net::io_context_runner::executor_type> work_;
 
   // Thread used for running the work io_context's run loop.
   std::experimental::net::detail::scoped_ptr<std::experimental::net::detail::thread> work_thread_;
