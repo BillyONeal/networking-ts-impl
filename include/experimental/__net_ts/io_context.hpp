@@ -106,10 +106,10 @@ private:
  * The io_context class provides the core I/O functionality for users of the
  * asynchronous I/O objects, including:
  *
- * @li std::experimental::net::ip::tcp::socket
- * @li std::experimental::net::ip::tcp::acceptor
- * @li std::experimental::net::ip::udp::socket
- * @li std::experimental::net::deadline_timer.
+ * @li std::experimental::net::v1::ip::tcp::socket
+ * @li std::experimental::net::v1::ip::tcp::acceptor
+ * @li std::experimental::net::v1::ip::udp::socket
+ * @li std::experimental::net::v1::deadline_timer.
  *
  * The io_context class also includes facilities intended for developers of
  * custom asynchronous services.
@@ -170,6 +170,35 @@ private:
  * }
  * @endcode
  *
+ * @par Submitting arbitrary tasks to the io_context
+ *
+ * To submit functions to the io_context, use the @ref std::experimental::net::v1::dispatch,
+ * @ref std::experimental::net::v1::post or @ref std::experimental::net::v1::defer free functions.
+ *
+ * For example:
+ *
+ * @code void my_task()
+ * {
+ *   ...
+ * }
+ *
+ * ...
+ *
+ * std::experimental::net::io_context io_context;
+ *
+ * // Submit a function to the io_context.
+ * std::experimental::net::post(io_context, my_task);
+ *
+ * // Submit a lambda object to the io_context.
+ * std::experimental::net::post(io_context,
+ *     []()
+ *     {
+ *       ...
+ *     });
+ *
+ * // Run the io_context until it runs out of work.
+ * io_context.run(); @endcode
+ *
  * @par Stopping the io_context from running out of work
  *
  * Some applications may need to prevent an io_context object's run() call from
@@ -177,7 +206,7 @@ private:
  * be being run in a background thread that is launched prior to the
  * application's asynchronous operations. The run() call may be kept running by
  * creating an object of type
- * std::experimental::net::executor_work_guard<io_context::executor_type>:
+ * std::experimental::net::v1::executor_work_guard<io_context::executor_type>:
  *
  * @code std::experimental::net::io_context io_context;
  * std::experimental::net::executor_work_guard<std::experimental::net::io_context::executor_type>
@@ -568,7 +597,7 @@ class io_context::service
 {
 public:
   /// Get the io_context object that owns the service.
-  std::experimental::net::io_context& get_io_context();
+  std::experimental::net::v1::io_context& get_io_context();
 
 private:
   /// Destroy all user-defined handler objects owned by the service.
@@ -588,7 +617,7 @@ protected:
   /**
    * @param owner The io_context object that owns the service.
    */
-  NET_TS_DECL service(std::experimental::net::io_context& owner);
+  NET_TS_DECL service(std::experimental::net::v1::io_context& owner);
 
   /// Destructor.
   NET_TS_DECL virtual ~service();
@@ -599,22 +628,22 @@ namespace detail {
 // Special service base class to keep classes header-file only.
 template <typename Type>
 class service_base
-  : public std::experimental::net::io_context::service
+  : public std::experimental::net::v1::io_context::service
 {
 public:
   virtual int svc_meta() { return 0; }
 
-  static std::experimental::net::detail::service_id<Type> id;
+  static std::experimental::net::v1::detail::service_id<Type> id;
 
   // Constructor.
-  service_base(std::experimental::net::io_context& io_context)
-    : std::experimental::net::io_context::service(io_context)
+  service_base(std::experimental::net::v1::io_context& io_context)
+    : std::experimental::net::v1::io_context::service(io_context)
   {
   }
 };
 
 template <typename Type>
-std::experimental::net::detail::service_id<Type> service_base<Type>::id;
+std::experimental::net::v1::detail::service_id<Type> service_base<Type>::id;
 
 } // namespace detail
 } // inline namespace v1

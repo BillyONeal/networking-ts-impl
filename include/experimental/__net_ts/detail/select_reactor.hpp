@@ -67,7 +67,7 @@ public:
   };
 
   // Constructor.
-  NET_TS_DECL select_reactor(std::experimental::net::execution_context& ctx);
+  NET_TS_DECL select_reactor(std::experimental::net::v1::execution_context& ctx);
 
   // Destructor.
   NET_TS_DECL ~select_reactor();
@@ -77,7 +77,7 @@ public:
 
   // Recreate internal descriptors following a fork.
   NET_TS_DECL void notify_fork(
-      std::experimental::net::execution_context::fork_event fork_ev);
+      std::experimental::net::v1::execution_context::fork_event fork_ev);
 
   // Initialise the task, but only if the reactor is not in its own thread.
   NET_TS_DECL void init_task();
@@ -109,13 +109,20 @@ public:
   NET_TS_DECL void cancel_ops(socket_type descriptor, per_descriptor_data&);
 
   // Cancel any operations that are running against the descriptor and remove
-  // its registration from the reactor.
+  // its registration from the reactor. The reactor resources associated with
+  // the descriptor must be released by calling cleanup_descriptor_data.
   NET_TS_DECL void deregister_descriptor(socket_type descriptor,
       per_descriptor_data&, bool closing);
 
-  // Remote the descriptor's registration from the reactor.
+  // Remove the descriptor's registration from the reactor. The reactor
+  // resources associated with the descriptor must be released by calling
+  // cleanup_descriptor_data.
   NET_TS_DECL void deregister_internal_descriptor(
-      socket_type descriptor, per_descriptor_data& descriptor_data);
+      socket_type descriptor, per_descriptor_data&);
+
+  // Perform any post-deregistration cleanup tasks associated with the
+  // descriptor data.
+  NET_TS_DECL void cleanup_descriptor_data(per_descriptor_data&);
 
   // Move descriptor registration from one descriptor_data object to another.
   NET_TS_DECL void move_descriptor(socket_type descriptor,
@@ -185,7 +192,7 @@ private:
   scheduler_type& scheduler_;
 
   // Mutex to protect access to internal data.
-  std::experimental::net::detail::mutex mutex_;
+  std::experimental::net::v1::detail::mutex mutex_;
 
   // The interrupter is used to break a blocking select call.
   select_interrupter interrupter_;
@@ -208,7 +215,7 @@ private:
   bool stop_thread_;
 
   // The thread that is running the reactor loop.
-  std::experimental::net::detail::thread* thread_;
+  std::experimental::net::v1::detail::thread* thread_;
 #endif // defined(NET_TS_HAS_IOCP)
 
   // Whether the service has been shut down.

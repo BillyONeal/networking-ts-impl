@@ -44,7 +44,7 @@ class packaged_handler;
  * The use_future_t class is used to indicate that an asynchronous operation
  * should return a std::future object. A use_future_t object may be passed as a
  * handler to an asynchronous operation, typically using the special value @c
- * std::experimental::net::use_future. For example:
+ * std::experimental::net::v1::use_future. For example:
  *
  * @code std::future<std::size_t> my_future
  *   = my_socket.async_read_some(my_buffer, std::experimental::net::use_future); @endcode
@@ -112,17 +112,33 @@ public:
   operator()(NET_TS_MOVE_ARG(Function) f) const;
 
 private:
-  Allocator allocator_;
+  // Helper type to ensure that use_future can be constexpr default-constructed
+  // even when std::allocator<void> can't be.
+  struct std_allocator_void
+  {
+    NET_TS_CONSTEXPR std_allocator_void()
+    {
+    }
+
+    operator std::allocator<void>() const
+    {
+      return std::allocator<void>();
+    }
+  };
+
+  typename conditional<
+    is_same<std::allocator<void>, Allocator>::value,
+    std_allocator_void, Allocator>::type allocator_;
 };
 
 /// A special value, similar to std::nothrow.
 /**
- * See the documentation for std::experimental::net::use_future_t for a usage example.
+ * See the documentation for std::experimental::net::v1::use_future_t for a usage example.
  */
-#if defined(NET_TS_MSVC)
-__declspec(selectany) use_future_t<> use_future;
-#elif defined(NET_TS_HAS_CONSTEXPR) || defined(GENERATING_DOCUMENTATION)
+#if defined(NET_TS_HAS_CONSTEXPR) || defined(GENERATING_DOCUMENTATION)
 constexpr use_future_t<> use_future;
+#elif defined(NET_TS_MSVC)
+__declspec(selectany) use_future_t<> use_future;
 #endif
 
 } // inline namespace v1

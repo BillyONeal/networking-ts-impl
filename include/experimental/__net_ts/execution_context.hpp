@@ -238,7 +238,7 @@ public:
    * @param args Zero or more arguments to be passed to the service
    * constructor.
    *
-   * @throws std::experimental::net::service_already_exists Thrown if a service of the
+   * @throws std::experimental::net::v1::service_already_exists Thrown if a service of the
    * given type is already present in the execution_context.
    */
   template <typename Service, typename... Args>
@@ -277,10 +277,10 @@ public:
    * is destroyed, it will destroy the service object by performing: @code
    * delete static_cast<execution_context::service*>(svc) @endcode
    *
-   * @throws std::experimental::net::service_already_exists Thrown if a service of the
+   * @throws std::experimental::net::v1::service_already_exists Thrown if a service of the
    * given type is already present in the execution_context.
    *
-   * @throws std::experimental::net::invalid_service_owner Thrown if the service's owning
+   * @throws std::experimental::net::v1::invalid_service_owner Thrown if the service's owning
    * execution_context is not the execution_context object specified by the
    * @c e parameter.
    */
@@ -302,7 +302,7 @@ public:
 
 private:
   // The service registry.
-  std::experimental::net::detail::service_registry* service_registry_;
+  std::experimental::net::v1::detail::service_registry* service_registry_;
 };
 
 /// Class used to uniquely identify a service.
@@ -345,7 +345,7 @@ private:
   NET_TS_DECL virtual void notify_fork(
       execution_context::fork_event event);
 
-  friend class std::experimental::net::detail::service_registry;
+  friend class std::experimental::net::v1::detail::service_registry;
   struct key
   {
     key() : type_info_(0), id_(0) {}

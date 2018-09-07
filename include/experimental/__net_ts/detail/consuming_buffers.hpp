@@ -29,19 +29,37 @@ namespace net {
 inline namespace v1 {
 namespace detail {
 
+// Helper template to determine the maximum number of prepared buffers.
+template <typename Buffers>
+struct prepared_buffers_max
+{
+  enum { value = buffer_sequence_adapter_base::max_buffers };
+};
+
+template <typename Elem, std::size_t N>
+struct prepared_buffers_max<boost::array<Elem, N> >
+{
+  enum { value = N };
+};
+
+#if defined(NET_TS_HAS_STD_ARRAY)
+
+template <typename Elem, std::size_t N>
+struct prepared_buffers_max<std::array<Elem, N> >
+{
+  enum { value = N };
+};
+
+#endif // defined(NET_TS_HAS_STD_ARRAY)
 
 // A buffer sequence used to represent a subsequence of the buffers.
-template <typename Buffer>
+template <typename Buffer, std::size_t MaxBuffers>
 struct prepared_buffers
 {
   typedef Buffer value_type;
   typedef const Buffer* const_iterator;
 
-  enum
-  {
-    max_buffers = buffer_sequence_adapter_base::max_buffers < 8
-      ? buffer_sequence_adapter_base::max_buffers : 8
-  };
+  enum { max_buffers = MaxBuffers < 16 ? MaxBuffers : 16 };
 
   prepared_buffers() : count(0) {}
   const_iterator begin() const { return elems; }
@@ -56,6 +74,9 @@ template <typename Buffer, typename Buffers, typename Buffer_Iterator>
 class consuming_buffers
 {
 public:
+  typedef prepared_buffers<Buffer, prepared_buffers_max<Buffers>::value>
+    prepared_buffers_type;
+
   // Construct to represent the entire list of buffers.
   explicit consuming_buffers(const Buffers& buffers)
     : buffers_(buffers),
@@ -63,7 +84,7 @@ public:
       next_elem_(0),
       next_elem_offset_(0)
   {
-    using std::experimental::net::buffer_size;
+    using std::experimental::net::v1::buffer_size;
     total_size_ = buffer_size(buffers);
   }
 
@@ -74,19 +95,19 @@ public:
   }
 
   // Get the buffer for a single transfer, with a size.
-  prepared_buffers<Buffer> prepare(std::size_t max_size)
+  prepared_buffers_type prepare(std::size_t max_size)
   {
-    prepared_buffers<Buffer> result;
+    prepared_buffers_type result;
 
-    Buffer_Iterator next = std::experimental::net::buffer_sequence_begin(buffers_);
-    Buffer_Iterator end = std::experimental::net::buffer_sequence_end(buffers_);
+    Buffer_Iterator next = std::experimental::net::v1::buffer_sequence_begin(buffers_);
+    Buffer_Iterator end = std::experimental::net::v1::buffer_sequence_end(buffers_);
 
     std::advance(next, next_elem_);
     std::size_t elem_offset = next_elem_offset_;
     while (next != end && max_size > 0 && result.count < result.max_buffers)
     {
       Buffer next_buf = Buffer(*next) + elem_offset;
-      result.elems[result.count] = std::experimental::net::buffer(next_buf, max_size);
+      result.elems[result.count] = std::experimental::net::v1::buffer(next_buf, max_size);
       max_size -= result.elems[result.count].size();
       elem_offset = 0;
       if (result.elems[result.count].size() > 0)
@@ -102,8 +123,8 @@ public:
   {
     total_consumed_ += size;
 
-    Buffer_Iterator next = std::experimental::net::buffer_sequence_begin(buffers_);
-    Buffer_Iterator end = std::experimental::net::buffer_sequence_end(buffers_);
+    Buffer_Iterator next = std::experimental::net::v1::buffer_sequence_begin(buffers_);
+    Buffer_Iterator end = std::experimental::net::v1::buffer_sequence_end(buffers_);
 
     std::advance(next, next_elem_);
     while (next != end && size > 0)
@@ -160,7 +181,7 @@ public:
   // Get the buffer for a single transfer, with a size.
   Buffer prepare(std::size_t max_size)
   {
-    return std::experimental::net::buffer(buffer_ + total_consumed_, max_size);
+    return std::experimental::net::v1::buffer(buffer_ + total_consumed_, max_size);
   }
 
   // Consume the specified number of bytes from the buffers.
@@ -238,8 +259,8 @@ public:
     boost::array<Buffer, 2> result = {{
       Buffer(buffers_[0]), Buffer(buffers_[1]) }};
     std::size_t buffer0_size = result[0].size();
-    result[0] = std::experimental::net::buffer(result[0] + total_consumed_, max_size);
-    result[1] = std::experimental::net::buffer(
+    result[0] = std::experimental::net::v1::buffer(result[0] + total_consumed_, max_size);
+    result[1] = std::experimental::net::v1::buffer(
         result[1] + (total_consumed_ < buffer0_size
           ? 0 : total_consumed_ - buffer0_size),
         max_size - result[0].size());
@@ -290,8 +311,8 @@ public:
     std::array<Buffer, 2> result = {{
       Buffer(buffers_[0]), Buffer(buffers_[1]) }};
     std::size_t buffer0_size = result[0].size();
-    result[0] = std::experimental::net::buffer(result[0] + total_consumed_, max_size);
-    result[1] = std::experimental::net::buffer(
+    result[0] = std::experimental::net::v1::buffer(result[0] + total_consumed_, max_size);
+    result[1] = std::experimental::net::v1::buffer(
         result[1] + (total_consumed_ < buffer0_size
           ? 0 : total_consumed_ - buffer0_size),
         max_size - result[0].size());
@@ -321,7 +342,7 @@ private:
 // always passed through to the underlying read or write operation.
 template <typename Buffer>
 class consuming_buffers<Buffer, null_buffers, const mutable_buffer*>
-  : public std::experimental::net::null_buffers
+  : public std::experimental::net::v1::null_buffers
 {
 public:
   consuming_buffers(const null_buffers&)

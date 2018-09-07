@@ -76,7 +76,7 @@ inline namespace v1 {
 
 // Forward declaration with defaulted arguments.
 template <typename Clock,
-    typename WaitTraits = std::experimental::net::wait_traits<Clock>
+    typename WaitTraits = std::experimental::net::v1::wait_traits<Clock>
     NET_TS_SVC_TPARAM_DEF2(= waitable_timer_service<Clock, WaitTraits>)>
 class basic_waitable_timer;
 
@@ -91,8 +91,8 @@ class basic_waitable_timer;
  * If the wait() or async_wait() function is called on an expired timer, the
  * wait operation will complete immediately.
  *
- * Most applications will use one of the std::experimental::net::steady_timer,
- * std::experimental::net::system_timer or std::experimental::net::high_resolution_timer typedefs.
+ * Most applications will use one of the std::experimental::net::v1::steady_timer,
+ * std::experimental::net::v1::system_timer or std::experimental::net::v1::high_resolution_timer typedefs.
  *
  * @note This waitable timer functionality is for use with the C++11 standard
  * library's @c &lt;chrono&gt; facility, or with the Boost.Chrono library.
@@ -165,14 +165,14 @@ class basic_waitable_timer;
  * }
  * @endcode
  *
- * @li The std::experimental::net::basic_waitable_timer::expires_after() function
+ * @li The std::experimental::net::v1::basic_waitable_timer::expires_after() function
  * cancels any pending asynchronous waits, and returns the number of
  * asynchronous waits that were cancelled. If it returns 0 then you were too
  * late and the wait handler has already been executed, or will soon be
  * executed. If it returns 1 then the wait handler was successfully cancelled.
  *
  * @li If a wait handler is cancelled, the std::error_code passed to
- * it contains the value std::experimental::net::error::operation_aborted.
+ * it contains the value std::experimental::net::v1::error::operation_aborted.
  */
 template <typename Clock, typename WaitTraits NET_TS_SVC_TPARAM>
 class basic_waitable_timer
@@ -203,7 +203,7 @@ public:
    * @param io_context The io_context object that the timer will use to dispatch
    * handlers for any asynchronous operations performed on the timer.
    */
-  explicit basic_waitable_timer(std::experimental::net::io_context& io_context)
+  explicit basic_waitable_timer(std::experimental::net::v1::io_context& io_context)
     : basic_io_object<NET_TS_SVC_T>(io_context)
   {
   }
@@ -218,13 +218,13 @@ public:
    * @param expiry_time The expiry time to be used for the timer, expressed
    * as an absolute time.
    */
-  basic_waitable_timer(std::experimental::net::io_context& io_context,
+  basic_waitable_timer(std::experimental::net::v1::io_context& io_context,
       const time_point& expiry_time)
     : basic_io_object<NET_TS_SVC_T>(io_context)
   {
     std::error_code ec;
     NET_TS_SVC_INVOKE(expires_at, expiry_time, ec);
-    std::experimental::net::detail::throw_error(ec, "expires_at");
+    std::experimental::net::v1::detail::throw_error(ec, "expires_at");
   }
 
   /// Constructor to set a particular expiry time relative to now.
@@ -237,13 +237,13 @@ public:
    * @param expiry_time The expiry time to be used for the timer, relative to
    * now.
    */
-  basic_waitable_timer(std::experimental::net::io_context& io_context,
+  basic_waitable_timer(std::experimental::net::v1::io_context& io_context,
       const duration& expiry_time)
     : basic_io_object<NET_TS_SVC_T>(io_context)
   {
     std::error_code ec;
     NET_TS_SVC_INVOKE(expires_after, expiry_time, ec);
-    std::experimental::net::detail::throw_error(ec, "expires_after");
+    std::experimental::net::v1::detail::throw_error(ec, "expires_after");
   }
 
 #if defined(NET_TS_HAS_MOVE) || defined(GENERATING_DOCUMENTATION)
@@ -299,7 +299,7 @@ public:
   /**
    * This function forces the completion of any pending asynchronous wait
    * operations against the timer. The handler for each cancelled operation will
-   * be invoked with the std::experimental::net::error::operation_aborted error code.
+   * be invoked with the std::experimental::net::v1::error::operation_aborted error code.
    *
    * Cancelling the timer does not change the expiry time.
    *
@@ -321,7 +321,7 @@ public:
   {
     std::error_code ec;
     std::size_t s = this->get_service().cancel(this->get_implementation(), ec);
-    std::experimental::net::detail::throw_error(ec, "cancel");
+    std::experimental::net::v1::detail::throw_error(ec, "cancel");
     return s;
   }
 
@@ -330,7 +330,7 @@ public:
    * This function forces the completion of one pending asynchronous wait
    * operation against the timer. Handlers are cancelled in FIFO order. The
    * handler for the cancelled operation will be invoked with the
-   * std::experimental::net::error::operation_aborted error code.
+   * std::experimental::net::v1::error::operation_aborted error code.
    *
    * Cancelling the timer does not change the expiry time.
    *
@@ -354,7 +354,7 @@ public:
     std::error_code ec;
     std::size_t s = this->get_service().cancel_one(
         this->get_implementation(), ec);
-    std::experimental::net::detail::throw_error(ec, "cancel_one");
+    std::experimental::net::v1::detail::throw_error(ec, "cancel_one");
     return s;
   }
 
@@ -372,7 +372,7 @@ public:
   /**
    * This function sets the expiry time. Any pending asynchronous wait
    * operations will be cancelled. The handler for each cancelled operation will
-   * be invoked with the std::experimental::net::error::operation_aborted error code.
+   * be invoked with the std::experimental::net::v1::error::operation_aborted error code.
    *
    * @param expiry_time The expiry time to be used for the timer.
    *
@@ -395,7 +395,7 @@ public:
     std::error_code ec;
     std::size_t s = this->get_service().expires_at(
         this->get_implementation(), expiry_time, ec);
-    std::experimental::net::detail::throw_error(ec, "expires_at");
+    std::experimental::net::v1::detail::throw_error(ec, "expires_at");
     return s;
   }
 
@@ -403,7 +403,7 @@ public:
   /**
    * This function sets the expiry time. Any pending asynchronous wait
    * operations will be cancelled. The handler for each cancelled operation will
-   * be invoked with the std::experimental::net::error::operation_aborted error code.
+   * be invoked with the std::experimental::net::v1::error::operation_aborted error code.
    *
    * @param expiry_time The expiry time to be used for the timer.
    *
@@ -425,7 +425,7 @@ public:
   {
     std::error_code ec;
     std::size_t s = NET_TS_SVC_INVOKE(expires_after, expiry_time, ec);
-    std::experimental::net::detail::throw_error(ec, "expires_after");
+    std::experimental::net::v1::detail::throw_error(ec, "expires_after");
     return s;
   }
 
@@ -440,7 +440,7 @@ public:
   {
     std::error_code ec;
     this->get_service().wait(this->get_implementation(), ec);
-    std::experimental::net::detail::throw_error(ec, "wait");
+    std::experimental::net::v1::detail::throw_error(ec, "wait");
   }
 
   /// Perform a blocking wait on the timer.
@@ -466,7 +466,7 @@ public:
    * @li The timer has expired.
    *
    * @li The timer was cancelled, in which case the handler is passed the error
-   * code std::experimental::net::error::operation_aborted.
+   * code std::experimental::net::v1::error::operation_aborted.
    *
    * @param handler The handler to be called when the timer expires. Copies
    * will be made of the handler as required. The function signature of the
@@ -477,7 +477,7 @@ public:
    * Regardless of whether the asynchronous operation completes immediately or
    * not, the handler will not be invoked from within this function. Invocation
    * of the handler will be performed in a manner equivalent to using
-   * std::experimental::net::io_context::post().
+   * std::experimental::net::v1::io_context::post().
    */
   template <typename WaitHandler>
   NET_TS_INITFN_RESULT_TYPE(WaitHandler,

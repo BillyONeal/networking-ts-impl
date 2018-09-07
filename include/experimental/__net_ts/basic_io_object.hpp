@@ -96,7 +96,7 @@ public:
   };
 
   /// The type of the executor associated with the object.
-  typedef std::experimental::net::io_context::executor_type executor_type;
+  typedef std::experimental::net::v1::io_context::executor_type executor_type;
 
   /// Get the executor associated with the object.
   executor_type get_executor() NET_TS_NOEXCEPT
@@ -110,8 +110,8 @@ protected:
    * Performs:
    * @code get_service().construct(get_implementation()); @endcode
    */
-  explicit basic_io_object(std::experimental::net::io_context& io_context)
-    : service_(std::experimental::net::use_service<IoObjectService>(io_context))
+  explicit basic_io_object(std::experimental::net::v1::io_context& io_context)
+    : service_(std::experimental::net::v1::use_service<IoObjectService>(io_context))
   {
     service_.construct(implementation_);
   }
@@ -214,7 +214,7 @@ public:
     ~implementation_type() {}
   };
 
-  typedef std::experimental::net::io_context::executor_type executor_type;
+  typedef std::experimental::net::v1::io_context::executor_type executor_type;
 
   executor_type get_executor() NET_TS_NOEXCEPT
   {
@@ -223,16 +223,16 @@ public:
   }
 
 protected:
-  explicit basic_io_object(std::experimental::net::io_context& io_context)
+  explicit basic_io_object(std::experimental::net::v1::io_context& io_context)
     : meta_(io_context.get_meta())
   {
     if (meta_ == 0) {
-      service_.svc1 = &std::experimental::net::use_service<IoObjectService1>(io_context);
+      service_.svc1 = &std::experimental::net::v1::use_service<IoObjectService1>(io_context);
       new ((void*)&implementation_.impl1) implementation_type1();
       service_.svc1->construct(implementation_.impl1);
     }
     else {
-      service_.svc2 = &std::experimental::net::use_service<IoObjectService2>(io_context);
+      service_.svc2 = &std::experimental::net::v1::use_service<IoObjectService2>(io_context);
       new ((void*)&implementation_.impl2) implementation_type2();
       service_.svc2->construct(implementation_.impl2);
     }
@@ -261,7 +261,7 @@ protected:
   template <typename IoObjectService1>
   basic_io_object(IoObjectService1& other_service,
       typename IoObjectService1::implementation_type& other_implementation)
-    : service_(&std::experimental::net::use_service<IoObjectService>(
+    : service_(&std::experimental::net::v1::use_service<IoObjectService>(
           other_service.get_io_context()))
   {
     service_->converting_move_construct(implementation_,

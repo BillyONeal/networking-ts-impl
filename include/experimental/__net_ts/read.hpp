@@ -29,7 +29,7 @@ namespace net {
 inline namespace v1 {
 
 /**
- * @defgroup read std::experimental::net::read
+ * @defgroup read std::experimental::net::v1::read
  *
  * @brief Attempt to read a certain amount of data from a stream before
  * returning.
@@ -383,7 +383,7 @@ std::size_t read(SyncReadStream& s,
 
 /*@}*/
 /**
- * @defgroup async_read std::experimental::net::async_read
+ * @defgroup async_read std::experimental::net::v1::async_read
  *
  * @brief Start an asynchronous operation to read a certain amount of data from
  * a stream.
@@ -433,7 +433,7 @@ std::size_t read(SyncReadStream& s,
  * Regardless of whether the asynchronous operation completes immediately or
  * not, the handler will not be invoked from within this function. Invocation of
  * the handler will be performed in a manner equivalent to using
- * std::experimental::net::io_context::post().
+ * std::experimental::net::v1::io_context::post().
  *
  * @par Example
  * To read into a single data buffer use the @ref buffer function as follows:
@@ -511,7 +511,7 @@ async_read(AsyncReadStream& s, const MutableBufferSequence& buffers,
  * Regardless of whether the asynchronous operation completes immediately or
  * not, the handler will not be invoked from within this function. Invocation of
  * the handler will be performed in a manner equivalent to using
- * std::experimental::net::io_context::post().
+ * std::experimental::net::v1::io_context::post().
  *
  * @par Example
  * To read into a single data buffer use the @ref buffer function as follows:
@@ -576,7 +576,7 @@ async_read(AsyncReadStream& s, const MutableBufferSequence& buffers,
  * Regardless of whether the asynchronous operation completes immediately or
  * not, the handler will not be invoked from within this function. Invocation of
  * the handler will be performed in a manner equivalent to using
- * std::experimental::net::io_context::post().
+ * std::experimental::net::v1::io_context::post().
  *
  * @note This overload is equivalent to calling:
  * @code std::experimental::net::async_read(
@@ -651,7 +651,7 @@ async_read(AsyncReadStream& s,
  * Regardless of whether the asynchronous operation completes immediately or
  * not, the handler will not be invoked from within this function. Invocation of
  * the handler will be performed in a manner equivalent to using
- * std::experimental::net::io_context::post().
+ * std::experimental::net::v1::io_context::post().
  */
 template <typename AsyncReadStream, typename DynamicBuffer,
     typename CompletionCondition, typename ReadHandler>

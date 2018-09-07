@@ -31,7 +31,7 @@ inline namespace v1 {
 namespace detail {
 
 reactive_socket_service_base::reactive_socket_service_base(
-    std::experimental::net::io_context& io_context)
+    std::experimental::net::v1::io_context& io_context)
   : io_context_(io_context),
     reactor_(use_service<reactor>(io_context))
 {
@@ -93,6 +93,8 @@ void reactive_socket_service_base::destroy(
 
     std::error_code ignored_ec;
     socket_ops::close(impl.socket_, impl.state_, true, ignored_ec);
+
+    reactor_.cleanup_descriptor_data(impl.reactor_data_);
   }
 }
 
@@ -107,9 +109,15 @@ std::error_code reactive_socket_service_base::close(
 
     reactor_.deregister_descriptor(impl.socket_, impl.reactor_data_,
         (impl.state_ & socket_ops::possible_dup) == 0);
-  }
 
-  socket_ops::close(impl.socket_, impl.state_, false, ec);
+    socket_ops::close(impl.socket_, impl.state_, false, ec);
+
+    reactor_.cleanup_descriptor_data(impl.reactor_data_);
+  }
+  else
+  {
+    ec = std::error_code();
+  }
 
   // The descriptor is closed by the OS even if close() returns an error.
   //
@@ -129,18 +137,20 @@ socket_type reactive_socket_service_base::release(
     std::error_code& ec)
 {
   if (!is_open(impl))
+  {
+    ec = std::experimental::net::v1::error::bad_descriptor;
     return invalid_socket;
+  }
 
-  cancel(impl, ec);
-  if (ec)
-    return invalid_socket;
+  NET_TS_HANDLER_OPERATION((reactor_.context(),
+        "socket", &impl, impl.socket_, "release"));
 
-  reactor_.deregister_descriptor(impl.socket_, impl.reactor_data_,
-      (impl.state_ & socket_ops::possible_dup) == 0);
-
-  socket_type tmp = impl.socket_;
-  impl.socket_ = invalid_socket;
-  return tmp;
+  reactor_.deregister_descriptor(impl.socket_, impl.reactor_data_, false);
+  reactor_.cleanup_descriptor_data(impl.reactor_data_);
+  socket_type sock = impl.socket_;
+  construct(impl);
+  ec = std::error_code();
+  return sock;
 }
 
 std::error_code reactive_socket_service_base::cancel(
@@ -149,7 +159,7 @@ std::error_code reactive_socket_service_base::cancel(
 {
   if (!is_open(impl))
   {
-    ec = std::experimental::net::error::bad_descriptor;
+    ec = std::experimental::net::v1::error::bad_descriptor;
     return ec;
   }
 
@@ -167,7 +177,7 @@ std::error_code reactive_socket_service_base::do_open(
 {
   if (is_open(impl))
   {
-    ec = std::experimental::net::error::already_open;
+    ec = std::experimental::net::v1::error::already_open;
     return ec;
   }
 
@@ -178,7 +188,7 @@ std::error_code reactive_socket_service_base::do_open(
   if (int err = reactor_.register_descriptor(sock.get(), impl.reactor_data_))
   {
     ec = std::error_code(err,
-        std::experimental::net::error::get_system_category());
+        std::experimental::net::v1::error::get_system_category());
     return ec;
   }
 
@@ -200,7 +210,7 @@ std::error_code reactive_socket_service_base::do_assign(
 {
   if (is_open(impl))
   {
-    ec = std::experimental::net::error::already_open;
+    ec = std::experimental::net::v1::error::already_open;
     return ec;
   }
 
@@ -208,7 +218,7 @@ std::error_code reactive_socket_service_base::do_assign(
         native_socket, impl.reactor_data_))
   {
     ec = std::error_code(err,
-        std::experimental::net::error::get_system_category());
+        std::experimental::net::v1::error::get_system_category());
     return ec;
   }
 
@@ -252,7 +262,7 @@ void reactive_socket_service_base::start_accept_op(
     start_op(impl, reactor::read_op, op, is_continuation, true, false);
   else
   {
-    op->ec_ = std::experimental::net::error::already_open;
+    op->ec_ = std::experimental::net::v1::error::already_open;
     reactor_.post_immediate_completion(op, is_continuation);
   }
 }
@@ -268,8 +278,8 @@ void reactive_socket_service_base::start_connect_op(
   {
     if (socket_ops::connect(impl.socket_, addr, addrlen, op->ec_) != 0)
     {
-      if (op->ec_ == std::experimental::net::error::in_progress
-          || op->ec_ == std::experimental::net::error::would_block)
+      if (op->ec_ == std::experimental::net::v1::error::in_progress
+          || op->ec_ == std::experimental::net::v1::error::would_block)
       {
         op->ec_ = std::error_code();
         reactor_.start_op(reactor::connect_op, impl.socket_,

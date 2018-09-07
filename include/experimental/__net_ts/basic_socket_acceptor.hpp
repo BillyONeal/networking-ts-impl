@@ -105,7 +105,7 @@ public:
    * dispatch handlers for any asynchronous operations performed on the
    * acceptor.
    */
-  explicit basic_socket_acceptor(std::experimental::net::io_context& io_context)
+  explicit basic_socket_acceptor(std::experimental::net::v1::io_context& io_context)
     : basic_io_object<NET_TS_SVC_T>(io_context)
   {
   }
@@ -122,13 +122,13 @@ public:
    *
    * @throws std::system_error Thrown on failure.
    */
-  basic_socket_acceptor(std::experimental::net::io_context& io_context,
+  basic_socket_acceptor(std::experimental::net::v1::io_context& io_context,
       const protocol_type& protocol)
     : basic_io_object<NET_TS_SVC_T>(io_context)
   {
     std::error_code ec;
     this->get_service().open(this->get_implementation(), protocol, ec);
-    std::experimental::net::detail::throw_error(ec, "open");
+    std::experimental::net::v1::detail::throw_error(ec, "open");
   }
 
   /// Construct an acceptor opened on the given endpoint.
@@ -158,25 +158,25 @@ public:
    * acceptor.listen(listen_backlog);
    * @endcode
    */
-  basic_socket_acceptor(std::experimental::net::io_context& io_context,
+  basic_socket_acceptor(std::experimental::net::v1::io_context& io_context,
       const endpoint_type& endpoint, bool reuse_addr = true)
     : basic_io_object<NET_TS_SVC_T>(io_context)
   {
     std::error_code ec;
     const protocol_type protocol = endpoint.protocol();
     this->get_service().open(this->get_implementation(), protocol, ec);
-    std::experimental::net::detail::throw_error(ec, "open");
+    std::experimental::net::v1::detail::throw_error(ec, "open");
     if (reuse_addr)
     {
       this->get_service().set_option(this->get_implementation(),
           socket_base::reuse_address(true), ec);
-      std::experimental::net::detail::throw_error(ec, "set_option");
+      std::experimental::net::v1::detail::throw_error(ec, "set_option");
     }
     this->get_service().bind(this->get_implementation(), endpoint, ec);
-    std::experimental::net::detail::throw_error(ec, "bind");
+    std::experimental::net::v1::detail::throw_error(ec, "bind");
     this->get_service().listen(this->get_implementation(),
         socket_base::max_listen_connections, ec);
-    std::experimental::net::detail::throw_error(ec, "listen");
+    std::experimental::net::v1::detail::throw_error(ec, "listen");
   }
 
   /// Construct a basic_socket_acceptor on an existing native acceptor.
@@ -194,14 +194,14 @@ public:
    *
    * @throws std::system_error Thrown on failure.
    */
-  basic_socket_acceptor(std::experimental::net::io_context& io_context,
+  basic_socket_acceptor(std::experimental::net::v1::io_context& io_context,
       const protocol_type& protocol, const native_handle_type& native_acceptor)
     : basic_io_object<NET_TS_SVC_T>(io_context)
   {
     std::error_code ec;
     this->get_service().assign(this->get_implementation(),
         protocol, native_acceptor, ec);
-    std::experimental::net::detail::throw_error(ec, "assign");
+    std::experimental::net::v1::detail::throw_error(ec, "assign");
   }
 
 #if defined(NET_TS_HAS_MOVE) || defined(GENERATING_DOCUMENTATION)
@@ -317,7 +317,7 @@ public:
   {
     std::error_code ec;
     NET_TS_SVC_INVOKE(open, protocol, ec);
-    std::experimental::net::detail::throw_error(ec, "open");
+    std::experimental::net::v1::detail::throw_error(ec, "open");
   }
 
   /// Open the acceptor using the specified protocol.
@@ -363,7 +363,7 @@ public:
     std::error_code ec;
     this->get_service().assign(this->get_implementation(),
         protocol, native_acceptor, ec);
-    std::experimental::net::detail::throw_error(ec, "assign");
+    std::experimental::net::v1::detail::throw_error(ec, "assign");
   }
 
   /// Assigns an existing native acceptor to the acceptor.
@@ -412,7 +412,7 @@ public:
   {
     std::error_code ec;
     NET_TS_SVC_INVOKE(bind, endpoint, ec);
-    std::experimental::net::detail::throw_error(ec, "bind");
+    std::experimental::net::v1::detail::throw_error(ec, "bind");
   }
 
   /// Bind the acceptor to the given local endpoint.
@@ -459,7 +459,7 @@ public:
   {
     std::error_code ec;
     NET_TS_SVC_INVOKE(listen, backlog, ec);
-    std::experimental::net::detail::throw_error(ec, "listen");
+    std::experimental::net::v1::detail::throw_error(ec, "listen");
   }
 
   /// Place the acceptor into the state where it will listen for new
@@ -504,7 +504,7 @@ public:
   {
     std::error_code ec;
     this->get_service().close(this->get_implementation(), ec);
-    std::experimental::net::detail::throw_error(ec, "close");
+    std::experimental::net::v1::detail::throw_error(ec, "close");
   }
 
   /// Close the acceptor.
@@ -539,13 +539,13 @@ public:
   /**
    * This function causes all outstanding asynchronous accept operations to
    * finish immediately, and the handlers for cancelled operations will be
-   * passed the std::experimental::net::error::operation_aborted error. Ownership of the
+   * passed the std::experimental::net::v1::error::operation_aborted error. Ownership of the
    * native acceptor is then transferred to the caller.
    *
    * @throws std::system_error Thrown on failure.
    *
    * @note This function is unsupported on Windows versions prior to Windows
-   * 8.1, and will fail with std::experimental::net::error::operation_not_supported on
+   * 8.1, and will fail with std::experimental::net::v1::error::operation_not_supported on
    * these platforms.
    */
 #if defined(NET_TS_MSVC) && (NET_TS_MSVC >= 1400) \
@@ -559,7 +559,7 @@ public:
     std::error_code ec;
     native_handle_type s = this->get_service().release(
         this->get_implementation(), ec);
-    std::experimental::net::detail::throw_error(ec, "release");
+    std::experimental::net::v1::detail::throw_error(ec, "release");
     return s;
   }
 
@@ -567,13 +567,13 @@ public:
   /**
    * This function causes all outstanding asynchronous accept operations to
    * finish immediately, and the handlers for cancelled operations will be
-   * passed the std::experimental::net::error::operation_aborted error. Ownership of the
+   * passed the std::experimental::net::v1::error::operation_aborted error. Ownership of the
    * native acceptor is then transferred to the caller.
    *
    * @param ec Set to indicate what error occurred, if any.
    *
    * @note This function is unsupported on Windows versions prior to Windows
-   * 8.1, and will fail with std::experimental::net::error::operation_not_supported on
+   * 8.1, and will fail with std::experimental::net::v1::error::operation_not_supported on
    * these platforms.
    */
 #if defined(NET_TS_MSVC) && (NET_TS_MSVC >= 1400) \
@@ -602,7 +602,7 @@ public:
   /**
    * This function causes all outstanding asynchronous connect, send and receive
    * operations to finish immediately, and the handlers for cancelled operations
-   * will be passed the std::experimental::net::error::operation_aborted error.
+   * will be passed the std::experimental::net::v1::error::operation_aborted error.
    *
    * @throws std::system_error Thrown on failure.
    */
@@ -610,14 +610,14 @@ public:
   {
     std::error_code ec;
     this->get_service().cancel(this->get_implementation(), ec);
-    std::experimental::net::detail::throw_error(ec, "cancel");
+    std::experimental::net::v1::detail::throw_error(ec, "cancel");
   }
 
   /// Cancel all asynchronous operations associated with the acceptor.
   /**
    * This function causes all outstanding asynchronous connect, send and receive
    * operations to finish immediately, and the handlers for cancelled operations
-   * will be passed the std::experimental::net::error::operation_aborted error.
+   * will be passed the std::experimental::net::v1::error::operation_aborted error.
    *
    * @param ec Set to indicate what error occurred, if any.
    */
@@ -636,8 +636,8 @@ public:
    * @throws std::system_error Thrown on failure.
    *
    * @sa SettableSocketOption @n
-   * std::experimental::net::socket_base::reuse_address
-   * std::experimental::net::socket_base::enable_connection_aborted
+   * std::experimental::net::v1::socket_base::reuse_address
+   * std::experimental::net::v1::socket_base::enable_connection_aborted
    *
    * @par Example
    * Setting the SOL_SOCKET/SO_REUSEADDR option:
@@ -653,7 +653,7 @@ public:
   {
     std::error_code ec;
     NET_TS_SVC_INVOKE(set_option, option, ec);
-    std::experimental::net::detail::throw_error(ec, "set_option");
+    std::experimental::net::v1::detail::throw_error(ec, "set_option");
   }
 
   /// Set an option on the acceptor.
@@ -665,8 +665,8 @@ public:
    * @param ec Set to indicate what error occurred, if any.
    *
    * @sa SettableSocketOption @n
-   * std::experimental::net::socket_base::reuse_address
-   * std::experimental::net::socket_base::enable_connection_aborted
+   * std::experimental::net::v1::socket_base::reuse_address
+   * std::experimental::net::v1::socket_base::enable_connection_aborted
    *
    * @par Example
    * Setting the SOL_SOCKET/SO_REUSEADDR option:
@@ -700,7 +700,7 @@ public:
    * @throws std::system_error Thrown on failure.
    *
    * @sa GettableSocketOption @n
-   * std::experimental::net::socket_base::reuse_address
+   * std::experimental::net::v1::socket_base::reuse_address
    *
    * @par Example
    * Getting the value of the SOL_SOCKET/SO_REUSEADDR option:
@@ -717,7 +717,7 @@ public:
   {
     std::error_code ec;
     this->get_service().get_option(this->get_implementation(), option, ec);
-    std::experimental::net::detail::throw_error(ec, "get_option");
+    std::experimental::net::v1::detail::throw_error(ec, "get_option");
   }
 
   /// Get an option from the acceptor.
@@ -730,7 +730,7 @@ public:
    * @param ec Set to indicate what error occurred, if any.
    *
    * @sa GettableSocketOption @n
-   * std::experimental::net::socket_base::reuse_address
+   * std::experimental::net::v1::socket_base::reuse_address
    *
    * @par Example
    * Getting the value of the SOL_SOCKET/SO_REUSEADDR option:
@@ -764,7 +764,7 @@ public:
    * @throws std::system_error Thrown on failure.
    *
    * @sa IoControlCommand @n
-   * std::experimental::net::socket_base::non_blocking_io
+   * std::experimental::net::v1::socket_base::non_blocking_io
    *
    * @par Example
    * Getting the number of bytes ready to read:
@@ -780,7 +780,7 @@ public:
   {
     std::error_code ec;
     this->get_service().io_control(this->get_implementation(), command, ec);
-    std::experimental::net::detail::throw_error(ec, "io_control");
+    std::experimental::net::v1::detail::throw_error(ec, "io_control");
   }
 
   /// Perform an IO control command on the acceptor.
@@ -792,7 +792,7 @@ public:
    * @param ec Set to indicate what error occurred, if any.
    *
    * @sa IoControlCommand @n
-   * std::experimental::net::socket_base::non_blocking_io
+   * std::experimental::net::v1::socket_base::non_blocking_io
    *
    * @par Example
    * Getting the number of bytes ready to read:
@@ -819,13 +819,13 @@ public:
   /// Gets the non-blocking mode of the acceptor.
   /**
    * @returns @c true if the acceptor's synchronous operations will fail with
-   * std::experimental::net::error::would_block if they are unable to perform the requested
+   * std::experimental::net::v1::error::would_block if they are unable to perform the requested
    * operation immediately. If @c false, synchronous operations will block
    * until complete.
    *
    * @note The non-blocking mode has no effect on the behaviour of asynchronous
    * operations. Asynchronous operations will never fail with the error
-   * std::experimental::net::error::would_block.
+   * std::experimental::net::v1::error::would_block.
    */
   bool non_blocking() const
   {
@@ -835,7 +835,7 @@ public:
   /// Sets the non-blocking mode of the acceptor.
   /**
    * @param mode If @c true, the acceptor's synchronous operations will fail
-   * with std::experimental::net::error::would_block if they are unable to perform the
+   * with std::experimental::net::v1::error::would_block if they are unable to perform the
    * requested operation immediately. If @c false, synchronous operations will
    * block until complete.
    *
@@ -843,19 +843,19 @@ public:
    *
    * @note The non-blocking mode has no effect on the behaviour of asynchronous
    * operations. Asynchronous operations will never fail with the error
-   * std::experimental::net::error::would_block.
+   * std::experimental::net::v1::error::would_block.
    */
   void non_blocking(bool mode)
   {
     std::error_code ec;
     this->get_service().non_blocking(this->get_implementation(), mode, ec);
-    std::experimental::net::detail::throw_error(ec, "non_blocking");
+    std::experimental::net::v1::detail::throw_error(ec, "non_blocking");
   }
 
   /// Sets the non-blocking mode of the acceptor.
   /**
    * @param mode If @c true, the acceptor's synchronous operations will fail
-   * with std::experimental::net::error::would_block if they are unable to perform the
+   * with std::experimental::net::v1::error::would_block if they are unable to perform the
    * requested operation immediately. If @c false, synchronous operations will
    * block until complete.
    *
@@ -863,7 +863,7 @@ public:
    *
    * @note The non-blocking mode has no effect on the behaviour of asynchronous
    * operations. Asynchronous operations will never fail with the error
-   * std::experimental::net::error::would_block.
+   * std::experimental::net::v1::error::would_block.
    */
   NET_TS_SYNC_OP_VOID non_blocking(
       bool mode, std::error_code& ec)
@@ -879,7 +879,7 @@ public:
    * object's synchronous operations.
    *
    * @returns @c true if the underlying acceptor is in non-blocking mode and
-   * direct system calls may fail with std::experimental::net::error::would_block (or the
+   * direct system calls may fail with std::experimental::net::v1::error::would_block (or the
    * equivalent system error).
    *
    * @note The current non-blocking mode is cached by the acceptor object.
@@ -898,12 +898,12 @@ public:
    * synchronous operations.
    *
    * @param mode If @c true, the underlying acceptor is put into non-blocking
-   * mode and direct system calls may fail with std::experimental::net::error::would_block
+   * mode and direct system calls may fail with std::experimental::net::v1::error::would_block
    * (or the equivalent system error).
    *
    * @throws std::system_error Thrown on failure. If the @c mode is
    * @c false, but the current value of @c non_blocking() is @c true, this
-   * function fails with std::experimental::net::error::invalid_argument, as the
+   * function fails with std::experimental::net::v1::error::invalid_argument, as the
    * combination does not make sense.
    */
   void native_non_blocking(bool mode)
@@ -911,7 +911,7 @@ public:
     std::error_code ec;
     this->get_service().native_non_blocking(
         this->get_implementation(), mode, ec);
-    std::experimental::net::detail::throw_error(ec, "native_non_blocking");
+    std::experimental::net::v1::detail::throw_error(ec, "native_non_blocking");
   }
 
   /// Sets the non-blocking mode of the native acceptor implementation.
@@ -921,12 +921,12 @@ public:
    * synchronous operations.
    *
    * @param mode If @c true, the underlying acceptor is put into non-blocking
-   * mode and direct system calls may fail with std::experimental::net::error::would_block
+   * mode and direct system calls may fail with std::experimental::net::v1::error::would_block
    * (or the equivalent system error).
    *
    * @param ec Set to indicate what error occurred, if any. If the @c mode is
    * @c false, but the current value of @c non_blocking() is @c true, this
-   * function fails with std::experimental::net::error::invalid_argument, as the
+   * function fails with std::experimental::net::v1::error::invalid_argument, as the
    * combination does not make sense.
    */
   NET_TS_SYNC_OP_VOID native_non_blocking(
@@ -957,7 +957,7 @@ public:
     std::error_code ec;
     endpoint_type ep = this->get_service().local_endpoint(
         this->get_implementation(), ec);
-    std::experimental::net::detail::throw_error(ec, "local_endpoint");
+    std::experimental::net::v1::detail::throw_error(ec, "local_endpoint");
     return ep;
   }
 
@@ -1008,7 +1008,7 @@ public:
   {
     std::error_code ec;
     this->get_service().wait(this->get_implementation(), w, ec);
-    std::experimental::net::detail::throw_error(ec, "wait");
+    std::experimental::net::v1::detail::throw_error(ec, "wait");
   }
 
   /// Wait for the acceptor to become ready to read, ready to write, or to have
@@ -1053,7 +1053,7 @@ public:
    * Regardless of whether the asynchronous operation completes immediately or
    * not, the handler will not be invoked from within this function. Invocation
    * of the handler will be performed in a manner equivalent to using
-   * std::experimental::net::io_context::post().
+   * std::experimental::net::v1::io_context::post().
    *
    * @par Example
    * @code
@@ -1119,7 +1119,7 @@ public:
     typename Protocol::socket peer(
         this->get_service().accept(
           this->get_implementation(), 0, 0, ec));
-    std::experimental::net::detail::throw_error(ec, "accept");
+    std::experimental::net::v1::detail::throw_error(ec, "accept");
     return peer;
   }
 
@@ -1171,7 +1171,7 @@ public:
    * Regardless of whether the asynchronous operation completes immediately or
    * not, the handler will not be invoked from within this function. Invocation
    * of the handler will be performed in a manner equivalent to using
-   * std::experimental::net::io_context::post().
+   * std::experimental::net::v1::io_context::post().
    *
    * @par Example
    * @code
@@ -1206,7 +1206,7 @@ public:
         typename Protocol::socket)> init(handler);
 
     this->get_service().async_accept(
-        this->get_implementation(), static_cast<std::experimental::net::io_context*>(0),
+        this->get_implementation(), static_cast<std::experimental::net::v1::io_context*>(0),
         static_cast<endpoint_type*>(0), init.completion_handler);
 
     return init.result.get();
@@ -1235,13 +1235,13 @@ public:
    * std::experimental::net::ip::tcp::socket socket(acceptor.accept());
    * @endcode
    */
-  typename Protocol::socket accept(std::experimental::net::io_context& io_context)
+  typename Protocol::socket accept(std::experimental::net::v1::io_context& io_context)
   {
     std::error_code ec;
     typename Protocol::socket peer(
         this->get_service().accept(this->get_implementation(),
           &io_context, static_cast<endpoint_type*>(0), ec));
-    std::experimental::net::detail::throw_error(ec, "accept");
+    std::experimental::net::v1::detail::throw_error(ec, "accept");
     return peer;
   }
 
@@ -1274,7 +1274,7 @@ public:
    * @endcode
    */
   typename Protocol::socket accept(
-      std::experimental::net::io_context& io_context, std::error_code& ec)
+      std::experimental::net::v1::io_context& io_context, std::error_code& ec)
   {
     return this->get_service().accept(this->get_implementation(),
         &io_context, static_cast<endpoint_type*>(0), ec);
@@ -1301,7 +1301,7 @@ public:
    * Regardless of whether the asynchronous operation completes immediately or
    * not, the handler will not be invoked from within this function. Invocation
    * of the handler will be performed in a manner equivalent to using
-   * std::experimental::net::io_context::post().
+   * std::experimental::net::v1::io_context::post().
    *
    * @par Example
    * @code
@@ -1324,7 +1324,7 @@ public:
   template <typename MoveAcceptHandler>
   NET_TS_INITFN_RESULT_TYPE(MoveAcceptHandler,
       void (std::error_code, typename Protocol::socket))
-  async_accept(std::experimental::net::io_context& io_context,
+  async_accept(std::experimental::net::v1::io_context& io_context,
       NET_TS_MOVE_ARG(MoveAcceptHandler) handler)
   {
     // If you get an error on the following line it means that your handler does
@@ -1371,8 +1371,8 @@ public:
     std::error_code ec;
     typename Protocol::socket peer(
         this->get_service().accept(this->get_implementation(),
-          static_cast<std::experimental::net::io_context*>(0), &peer_endpoint, ec));
-    std::experimental::net::detail::throw_error(ec, "accept");
+          static_cast<std::experimental::net::v1::io_context*>(0), &peer_endpoint, ec));
+    std::experimental::net::v1::detail::throw_error(ec, "accept");
     return peer;
   }
 
@@ -1409,7 +1409,7 @@ public:
       endpoint_type& peer_endpoint, std::error_code& ec)
   {
     return this->get_service().accept(this->get_implementation(),
-        static_cast<std::experimental::net::io_context*>(0), &peer_endpoint, ec);
+        static_cast<std::experimental::net::v1::io_context*>(0), &peer_endpoint, ec);
   }
 
   /// Start an asynchronous accept.
@@ -1435,7 +1435,7 @@ public:
    * Regardless of whether the asynchronous operation completes immediately or
    * not, the handler will not be invoked from within this function. Invocation
    * of the handler will be performed in a manner equivalent to using
-   * std::experimental::net::io_context::post().
+   * std::experimental::net::v1::io_context::post().
    *
    * @par Example
    * @code
@@ -1472,7 +1472,7 @@ public:
         typename Protocol::socket)> init(handler);
 
     this->get_service().async_accept(this->get_implementation(),
-        static_cast<std::experimental::net::io_context*>(0), &peer_endpoint,
+        static_cast<std::experimental::net::v1::io_context*>(0), &peer_endpoint,
         init.completion_handler);
 
     return init.result.get();
@@ -1507,13 +1507,13 @@ public:
    * @endcode
    */
   typename Protocol::socket accept(
-      std::experimental::net::io_context& io_context, endpoint_type& peer_endpoint)
+      std::experimental::net::v1::io_context& io_context, endpoint_type& peer_endpoint)
   {
     std::error_code ec;
     typename Protocol::socket peer(
         this->get_service().accept(this->get_implementation(),
           &io_context, &peer_endpoint, ec));
-    std::experimental::net::detail::throw_error(ec, "accept");
+    std::experimental::net::v1::detail::throw_error(ec, "accept");
     return peer;
   }
 
@@ -1550,7 +1550,7 @@ public:
    * }
    * @endcode
    */
-  typename Protocol::socket accept(std::experimental::net::io_context& io_context,
+  typename Protocol::socket accept(std::experimental::net::v1::io_context& io_context,
       endpoint_type& peer_endpoint, std::error_code& ec)
   {
     return this->get_service().accept(this->get_implementation(),
@@ -1583,7 +1583,7 @@ public:
    * Regardless of whether the asynchronous operation completes immediately or
    * not, the handler will not be invoked from within this function. Invocation
    * of the handler will be performed in a manner equivalent to using
-   * std::experimental::net::io_context::post().
+   * std::experimental::net::v1::io_context::post().
    *
    * @par Example
    * @code
@@ -1607,7 +1607,7 @@ public:
   template <typename MoveAcceptHandler>
   NET_TS_INITFN_RESULT_TYPE(MoveAcceptHandler,
       void (std::error_code, typename Protocol::socket))
-  async_accept(std::experimental::net::io_context& io_context,
+  async_accept(std::experimental::net::v1::io_context& io_context,
       endpoint_type& peer_endpoint,
       NET_TS_MOVE_ARG(MoveAcceptHandler) handler)
   {

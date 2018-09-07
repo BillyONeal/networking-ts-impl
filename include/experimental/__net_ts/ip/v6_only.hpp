@@ -56,12 +56,12 @@ namespace ip {
 #if defined(GENERATING_DOCUMENTATION)
 typedef implementation_defined v6_only;
 #elif defined(IPV6_V6ONLY)
-typedef std::experimental::net::detail::socket_option::boolean<
+typedef std::experimental::net::v1::detail::socket_option::boolean<
     IPPROTO_IPV6, IPV6_V6ONLY> v6_only;
 #else
-typedef std::experimental::net::detail::socket_option::boolean<
-    std::experimental::net::detail::custom_socket_option_level,
-    std::experimental::net::detail::always_fail_option> v6_only;
+typedef std::experimental::net::v1::detail::socket_option::boolean<
+    std::experimental::net::v1::detail::custom_socket_option_level,
+    std::experimental::net::v1::detail::always_fail_option> v6_only;
 #endif
 
 } // namespace ip

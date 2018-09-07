@@ -35,7 +35,8 @@ win_event::win_event()
   : state_(0)
 {
 #if defined(NET_TS_WINDOWS_APP)
-  events_[0] = ::CreateEventExW(0, 0, CREATE_EVENT_MANUAL_RESET, 0);
+  events_[0] = ::CreateEventExW(0, 0,
+      CREATE_EVENT_MANUAL_RESET, EVENT_ALL_ACCESS);
 #else // defined(NET_TS_WINDOWS_APP)
   events_[0] = ::CreateEventW(0, true, false, 0);
 #endif // defined(NET_TS_WINDOWS_APP)
@@ -43,12 +44,12 @@ win_event::win_event()
   {
     DWORD last_error = ::GetLastError();
     std::error_code ec(last_error,
-        std::experimental::net::error::get_system_category());
-    std::experimental::net::detail::throw_error(ec, "event");
+        std::experimental::net::v1::error::get_system_category());
+    std::experimental::net::v1::detail::throw_error(ec, "event");
   }
 
 #if defined(NET_TS_WINDOWS_APP)
-  events_[1] = ::CreateEventExW(0, 0, 0, 0);
+  events_[1] = ::CreateEventExW(0, 0, 0, EVENT_ALL_ACCESS);
 #else // defined(NET_TS_WINDOWS_APP)
   events_[1] = ::CreateEventW(0, false, false, 0);
 #endif // defined(NET_TS_WINDOWS_APP)
@@ -57,8 +58,8 @@ win_event::win_event()
     DWORD last_error = ::GetLastError();
     ::CloseHandle(events_[0]);
     std::error_code ec(last_error,
-        std::experimental::net::error::get_system_category());
-    std::experimental::net::detail::throw_error(ec, "event");
+        std::experimental::net::v1::error::get_system_category());
+    std::experimental::net::v1::detail::throw_error(ec, "event");
   }
 }
 

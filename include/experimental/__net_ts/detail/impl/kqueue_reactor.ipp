@@ -42,7 +42,7 @@ namespace net {
 inline namespace v1 {
 namespace detail {
 
-kqueue_reactor::kqueue_reactor(std::experimental::net::execution_context& ctx)
+kqueue_reactor::kqueue_reactor(std::experimental::net::v1::execution_context& ctx)
   : execution_context_service_base<kqueue_reactor>(ctx),
     scheduler_(use_service<scheduler>(ctx)),
     mutex_(NET_TS_CONCURRENCY_HINT_IS_LOCKING(
@@ -58,8 +58,8 @@ kqueue_reactor::kqueue_reactor(std::experimental::net::execution_context& ctx)
   if (::kevent(kqueue_fd_, events, 1, 0, 0, 0) == -1)
   {
     std::error_code error(errno,
-        std::experimental::net::error::get_system_category());
-    std::experimental::net::detail::throw_error(error);
+        std::experimental::net::v1::error::get_system_category());
+    std::experimental::net::v1::detail::throw_error(error);
   }
 }
 
@@ -90,9 +90,9 @@ void kqueue_reactor::shutdown()
 }
 
 void kqueue_reactor::notify_fork(
-    std::experimental::net::execution_context::fork_event fork_ev)
+    std::experimental::net::v1::execution_context::fork_event fork_ev)
 {
-  if (fork_ev == std::experimental::net::execution_context::fork_child)
+  if (fork_ev == std::experimental::net::v1::execution_context::fork_child)
   {
     // The kqueue descriptor is automatically closed in the child.
     kqueue_fd_ = -1;
@@ -106,8 +106,8 @@ void kqueue_reactor::notify_fork(
     if (::kevent(kqueue_fd_, events, 1, 0, 0, 0) == -1)
     {
       std::error_code ec(errno,
-          std::experimental::net::error::get_system_category());
-      std::experimental::net::detail::throw_error(ec, "kqueue interrupter registration");
+          std::experimental::net::v1::error::get_system_category());
+      std::experimental::net::v1::detail::throw_error(ec, "kqueue interrupter registration");
     }
 
     // Re-register all descriptors with kqueue.
@@ -124,8 +124,8 @@ void kqueue_reactor::notify_fork(
         if (::kevent(kqueue_fd_, events, state->num_kevents_, 0, 0, 0) == -1)
         {
           std::error_code ec(errno,
-              std::experimental::net::error::get_system_category());
-          std::experimental::net::detail::throw_error(ec, "kqueue re-registration");
+              std::experimental::net::v1::error::get_system_category());
+          std::experimental::net::v1::detail::throw_error(ec, "kqueue re-registration");
         }
       }
     }
@@ -195,7 +195,7 @@ void kqueue_reactor::start_op(int op_type, socket_type descriptor,
 {
   if (!descriptor_data)
   {
-    op->ec_ = std::experimental::net::error::bad_descriptor;
+    op->ec_ = std::experimental::net::v1::error::bad_descriptor;
     post_immediate_completion(op, is_continuation);
     return;
   }
@@ -237,7 +237,7 @@ void kqueue_reactor::start_op(int op_type, socket_type descriptor,
         else
         {
           op->ec_ = std::error_code(errno,
-              std::experimental::net::error::get_system_category());
+              std::experimental::net::v1::error::get_system_category());
           scheduler_.post_immediate_completion(op, is_continuation);
           return;
         }
@@ -274,7 +274,7 @@ void kqueue_reactor::cancel_ops(socket_type,
   {
     while (reactor_op* op = descriptor_data->op_queue_[i].front())
     {
-      op->ec_ = std::experimental::net::error::operation_aborted;
+      op->ec_ = std::experimental::net::v1::error::operation_aborted;
       descriptor_data->op_queue_[i].pop();
       ops.push(op);
     }
@@ -315,7 +315,7 @@ void kqueue_reactor::deregister_descriptor(socket_type descriptor,
     {
       while (reactor_op* op = descriptor_data->op_queue_[i].front())
       {
-        op->ec_ = std::experimental::net::error::operation_aborted;
+        op->ec_ = std::experimental::net::v1::error::operation_aborted;
         descriptor_data->op_queue_[i].pop();
         ops.push(op);
       }
@@ -330,10 +330,16 @@ void kqueue_reactor::deregister_descriptor(socket_type descriptor,
           context(), static_cast<uintmax_t>(descriptor),
           reinterpret_cast<uintmax_t>(descriptor_data)));
 
-    free_descriptor_state(descriptor_data);
-    descriptor_data = 0;
-
     scheduler_.post_deferred_completions(ops);
+
+    // Leave descriptor_data set so that it will be freed by the subsequent
+    // call to cleanup_descriptor_data.
+  }
+  else
+  {
+    // We are shutting down, so prevent cleanup_descriptor_data from freeing
+    // the descriptor_data object and let the destructor free it instead.
+    descriptor_data = 0;
   }
 }
 
@@ -367,6 +373,22 @@ void kqueue_reactor::deregister_internal_descriptor(socket_type descriptor,
           context(), static_cast<uintmax_t>(descriptor),
           reinterpret_cast<uintmax_t>(descriptor_data)));
 
+    // Leave descriptor_data set so that it will be freed by the subsequent
+    // call to cleanup_descriptor_data.
+  }
+  else
+  {
+    // We are shutting down, so prevent cleanup_descriptor_data from freeing
+    // the descriptor_data object and let the destructor free it instead.
+    descriptor_data = 0;
+  }
+}
+
+void kqueue_reactor::cleanup_descriptor_data(
+    per_descriptor_data& descriptor_data)
+{
+  if (descriptor_data)
+  {
     free_descriptor_state(descriptor_data);
     descriptor_data = 0;
   }
@@ -459,7 +481,7 @@ void kqueue_reactor::run(long usec, op_queue<operation>& ops)
               {
                 op->ec_ = std::error_code(
                     static_cast<int>(events[i].data),
-                    std::experimental::net::error::get_system_category());
+                    std::experimental::net::v1::error::get_system_category());
                 descriptor_data->op_queue_[j].pop();
                 ops.push(op);
               }
@@ -492,8 +514,8 @@ int kqueue_reactor::do_kqueue_create()
   if (fd == -1)
   {
     std::error_code ec(errno,
-        std::experimental::net::error::get_system_category());
-    std::experimental::net::detail::throw_error(ec, "kqueue");
+        std::experimental::net::v1::error::get_system_category());
+    std::experimental::net::v1::detail::throw_error(ec, "kqueue");
   }
   return fd;
 }

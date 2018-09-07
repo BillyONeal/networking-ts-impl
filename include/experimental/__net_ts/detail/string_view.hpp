@@ -15,9 +15,9 @@
 # pragma once
 #endif // defined(_MSC_VER) && (_MSC_VER >= 1200)
 
-#if defined(NET_TS_HAS_STD_STRING_VIEW)
-
 #include <experimental/__net_ts/detail/config.hpp>
+
+#if defined(NET_TS_HAS_STD_STRING_VIEW)
 
 #if defined(NET_TS_HAS_STD_EXPERIMENTAL_STRING_VIEW)
 # include <experimental/string_view>
@@ -43,7 +43,7 @@ using std::string_view;
 } // namespace experimental
 } // namespace std
 
-# define NET_TS_STRING_VIEW_PARAM std::experimental::net::string_view
+# define NET_TS_STRING_VIEW_PARAM std::experimental::net::v1::string_view
 #else // defined(NET_TS_HAS_STD_STRING_VIEW)
 # define NET_TS_STRING_VIEW_PARAM const std::string&
 #endif // defined(NET_TS_HAS_STD_STRING_VIEW)

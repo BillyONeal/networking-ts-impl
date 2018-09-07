@@ -117,7 +117,7 @@ std::size_t io_context_runner::run_one_until(
     std::size_t s = impl_.wait_one(
         static_cast<long>(chrono::duration_cast<
           chrono::microseconds>(rel_time).count()), ec);
-    std::experimental::net::detail::throw_error(ec);
+    std::experimental::net::v1::detail::throw_error(ec);
 
     if (s || impl_.stopped())
       return s;
@@ -219,9 +219,9 @@ io_context_runner::executor_type::running_in_this_thread() const NET_TS_NOEXCEPT
   return io_context_.impl_.can_dispatch();
 }
 
-inline std::experimental::net::io_context& io_context::service::get_io_context()
+inline std::experimental::net::v1::io_context& io_context::service::get_io_context()
 {
-  return static_cast<std::experimental::net::io_context&>(context());
+  return static_cast<std::experimental::net::v1::io_context&>(context());
 }
 
 struct io_context::executor_type {

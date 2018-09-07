@@ -35,8 +35,8 @@ inline void* allocate(std::size_t s, Handler& h)
 #if !defined(NET_TS_HAS_HANDLER_HOOKS)
   return ::operator new(s);
 #else
-  using std::experimental::net::networking_ts_handler_allocate;
-  return networking_ts_handler_allocate(s, std::experimental::net::detail::addressof(h));
+  using std::experimental::net::v1::networking_ts_handler_allocate;
+  return networking_ts_handler_allocate(s, std::experimental::net::v1::detail::addressof(h));
 #endif
 }
 
@@ -46,8 +46,8 @@ inline void deallocate(void* p, std::size_t s, Handler& h)
 #if !defined(NET_TS_HAS_HANDLER_HOOKS)
   ::operator delete(p);
 #else
-  using std::experimental::net::networking_ts_handler_deallocate;
-  networking_ts_handler_deallocate(p, s, std::experimental::net::detail::addressof(h));
+  using std::experimental::net::v1::networking_ts_handler_deallocate;
+  networking_ts_handler_deallocate(p, s, std::experimental::net::v1::detail::addressof(h));
 #endif
 }
 
@@ -124,6 +124,28 @@ public:
   Handler& handler_;
 };
 
+template <typename Handler, typename Allocator>
+struct get_hook_allocator
+{
+  typedef Allocator type;
+
+  static type get(Handler&, const Allocator& a)
+  {
+    return a;
+  }
+};
+
+template <typename Handler, typename T>
+struct get_hook_allocator<Handler, std::allocator<T> >
+{
+  typedef hook_allocator<Handler, T> type;
+
+  static type get(Handler& handler, const std::allocator<T>&)
+  {
+    return type(handler);
+  }
+};
+
 } // namespace detail
 } // inline namespace v1
 } // namespace net
@@ -133,11 +155,6 @@ public:
 #define NET_TS_DEFINE_HANDLER_PTR(op) \
   struct ptr \
   { \
-    typedef typename ::std::experimental::net::associated_allocator<Handler, \
-      ::std::experimental::net::detail::hook_allocator<Handler, \
-        void> >::type associated_allocator_type; \
-    typedef NET_TS_REBIND_ALLOC( \
-      associated_allocator_type, op) allocator_type; \
     Handler* h; \
     op* v; \
     op* p; \
@@ -147,16 +164,18 @@ public:
     } \
     static op* allocate(Handler& handler) \
     { \
-      allocator_type a(::std::experimental::net::associated_allocator<Handler, \
-        ::std::experimental::net::detail::hook_allocator<Handler, void> >::get(handler, \
-          ::std::experimental::net::detail::hook_allocator<Handler, void>(handler))); \
+      typedef typename ::std::experimental::net::v1::associated_allocator< \
+        Handler>::type associated_allocator_type; \
+      typedef typename ::std::experimental::net::v1::detail::get_hook_allocator< \
+        Handler, associated_allocator_type>::type hook_allocator_type; \
+      NET_TS_REBIND_ALLOC(hook_allocator_type, op) a( \
+            ::std::experimental::net::v1::detail::get_hook_allocator< \
+              Handler, associated_allocator_type>::get( \
+                handler, ::std::experimental::net::v1::get_associated_allocator(handler))); \
       return a.allocate(1); \
     } \
     void reset() \
     { \
-      allocator_type a(::std::experimental::net::associated_allocator<Handler, \
-        ::std::experimental::net::detail::hook_allocator<Handler, void> >::get(*h, \
-          ::std::experimental::net::detail::hook_allocator<Handler, void>(*h))); \
       if (p) \
       { \
         p->~op(); \
@@ -164,6 +183,14 @@ public:
       } \
       if (v) \
       { \
+        typedef typename ::std::experimental::net::v1::associated_allocator< \
+          Handler>::type associated_allocator_type; \
+        typedef typename ::std::experimental::net::v1::detail::get_hook_allocator< \
+          Handler, associated_allocator_type>::type hook_allocator_type; \
+        NET_TS_REBIND_ALLOC(hook_allocator_type, op) a( \
+              ::std::experimental::net::v1::detail::get_hook_allocator< \
+                Handler, associated_allocator_type>::get( \
+                  *h, ::std::experimental::net::v1::get_associated_allocator(*h))); \
         a.deallocate(static_cast<op*>(v), 1); \
         v = 0; \
       } \
@@ -183,18 +210,14 @@ public:
     } \
     static op* allocate(const Alloc& a) \
     { \
-      typedef typename ::std::experimental::net::detail::get_recycling_allocator< \
+      typedef typename ::std::experimental::net::v1::detail::get_recycling_allocator< \
         Alloc>::type recycling_allocator_type; \
       NET_TS_REBIND_ALLOC(recycling_allocator_type, op) a1( \
-            ::std::experimental::net::detail::get_recycling_allocator<Alloc>::get(a)); \
+            ::std::experimental::net::v1::detail::get_recycling_allocator<Alloc>::get(a)); \
       return a1.allocate(1); \
     } \
     void reset() \
     { \
-      typedef typename ::std::experimental::net::detail::get_recycling_allocator< \
-        Alloc>::type recycling_allocator_type; \
-      NET_TS_REBIND_ALLOC(recycling_allocator_type, op) a1( \
-            ::std::experimental::net::detail::get_recycling_allocator<Alloc>::get(*a)); \
       if (p) \
       { \
         p->~op(); \
@@ -202,6 +225,10 @@ public:
       } \
       if (v) \
       { \
+        typedef typename ::std::experimental::net::v1::detail::get_recycling_allocator< \
+          Alloc>::type recycling_allocator_type; \
+        NET_TS_REBIND_ALLOC(recycling_allocator_type, op) a1( \
+              ::std::experimental::net::v1::detail::get_recycling_allocator<Alloc>::get(*a)); \
         a1.deallocate(static_cast<op*>(v), 1); \
         v = 0; \
       } \

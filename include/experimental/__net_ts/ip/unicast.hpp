@@ -57,7 +57,7 @@ namespace unicast {
 #if defined(GENERATING_DOCUMENTATION)
 typedef implementation_defined hops;
 #else
-typedef std::experimental::net::ip::detail::socket_option::unicast_hops<
+typedef std::experimental::net::v1::ip::detail::socket_option::unicast_hops<
   NET_TS_OS_DEF(IPPROTO_IP),
   NET_TS_OS_DEF(IP_TTL),
   NET_TS_OS_DEF(IPPROTO_IPV6),

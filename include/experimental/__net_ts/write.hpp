@@ -29,7 +29,7 @@ namespace net {
 inline namespace v1 {
 
 /**
- * @defgroup write std::experimental::net::write
+ * @defgroup write std::experimental::net::v1::write
  *
  * @brief Write a certain amount of data to a stream before returning.
  */
@@ -383,7 +383,7 @@ std::size_t write(SyncWriteStream& s,
 
 /*@}*/
 /**
- * @defgroup async_write std::experimental::net::async_write
+ * @defgroup async_write std::experimental::net::v1::async_write
  *
  * @brief Start an asynchronous operation to write a certain amount of data to a
  * stream.
@@ -431,7 +431,7 @@ std::size_t write(SyncWriteStream& s,
  * Regardless of whether the asynchronous operation completes immediately or
  * not, the handler will not be invoked from within this function. Invocation of
  * the handler will be performed in a manner equivalent to using
- * std::experimental::net::io_context::post().
+ * std::experimental::net::v1::io_context::post().
  *
  * @par Example
  * To write a single data buffer use the @ref buffer function as follows:
@@ -507,7 +507,7 @@ async_write(AsyncWriteStream& s, const ConstBufferSequence& buffers,
  * Regardless of whether the asynchronous operation completes immediately or
  * not, the handler will not be invoked from within this function. Invocation of
  * the handler will be performed in a manner equivalent to using
- * std::experimental::net::io_context::post().
+ * std::experimental::net::v1::io_context::post().
  *
  * @par Example
  * To write a single data buffer use the @ref buffer function as follows:
@@ -571,7 +571,7 @@ async_write(AsyncWriteStream& s, const ConstBufferSequence& buffers,
  * Regardless of whether the asynchronous operation completes immediately or
  * not, the handler will not be invoked from within this function. Invocation of
  * the handler will be performed in a manner equivalent to using
- * std::experimental::net::io_context::post().
+ * std::experimental::net::v1::io_context::post().
  */
 template <typename AsyncWriteStream,
     typename DynamicBuffer, typename WriteHandler>
@@ -639,7 +639,7 @@ async_write(AsyncWriteStream& s,
  * Regardless of whether the asynchronous operation completes immediately or
  * not, the handler will not be invoked from within this function. Invocation of
  * the handler will be performed in a manner equivalent to using
- * std::experimental::net::io_context::post().
+ * std::experimental::net::v1::io_context::post().
  */
 template <typename AsyncWriteStream, typename DynamicBuffer,
     typename CompletionCondition, typename WriteHandler>

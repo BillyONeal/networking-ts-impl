@@ -71,7 +71,7 @@ public:
    * @param io_context The io_context object that the stream socket will use to
    * dispatch handlers for any asynchronous operations performed on the socket.
    */
-  explicit basic_stream_socket(std::experimental::net::io_context& io_context)
+  explicit basic_stream_socket(std::experimental::net::v1::io_context& io_context)
     : basic_socket<Protocol NET_TS_SVC_TARG>(io_context)
   {
   }
@@ -88,7 +88,7 @@ public:
    *
    * @throws std::system_error Thrown on failure.
    */
-  basic_stream_socket(std::experimental::net::io_context& io_context,
+  basic_stream_socket(std::experimental::net::v1::io_context& io_context,
       const protocol_type& protocol)
     : basic_socket<Protocol NET_TS_SVC_TARG>(io_context, protocol)
   {
@@ -109,7 +109,7 @@ public:
    *
    * @throws std::system_error Thrown on failure.
    */
-  basic_stream_socket(std::experimental::net::io_context& io_context,
+  basic_stream_socket(std::experimental::net::v1::io_context& io_context,
       const endpoint_type& endpoint)
     : basic_socket<Protocol NET_TS_SVC_TARG>(io_context, endpoint)
   {
@@ -129,7 +129,7 @@ public:
    *
    * @throws std::system_error Thrown on failure.
    */
-  basic_stream_socket(std::experimental::net::io_context& io_context,
+  basic_stream_socket(std::experimental::net::v1::io_context& io_context,
       const protocol_type& protocol, const native_handle_type& native_socket)
     : basic_socket<Protocol NET_TS_SVC_TARG>(
         io_context, protocol, native_socket)
@@ -247,7 +247,7 @@ public:
     std::error_code ec;
     std::size_t s = this->get_service().send(
         this->get_implementation(), buffers, 0, ec);
-    std::experimental::net::detail::throw_error(ec, "send");
+    std::experimental::net::v1::detail::throw_error(ec, "send");
     return s;
   }
 
@@ -285,7 +285,7 @@ public:
     std::error_code ec;
     std::size_t s = this->get_service().send(
         this->get_implementation(), buffers, flags, ec);
-    std::experimental::net::detail::throw_error(ec, "send");
+    std::experimental::net::v1::detail::throw_error(ec, "send");
     return s;
   }
 
@@ -335,7 +335,7 @@ public:
    * Regardless of whether the asynchronous operation completes immediately or
    * not, the handler will not be invoked from within this function. Invocation
    * of the handler will be performed in a manner equivalent to using
-   * std::experimental::net::io_context::post().
+   * std::experimental::net::v1::io_context::post().
    *
    * @note The send operation may not transmit all of the data to the peer.
    * Consider using the @ref async_write function if you need to ensure that all
@@ -392,7 +392,7 @@ public:
    * Regardless of whether the asynchronous operation completes immediately or
    * not, the handler will not be invoked from within this function. Invocation
    * of the handler will be performed in a manner equivalent to using
-   * std::experimental::net::io_context::post().
+   * std::experimental::net::v1::io_context::post().
    *
    * @note The send operation may not transmit all of the data to the peer.
    * Consider using the @ref async_write function if you need to ensure that all
@@ -439,7 +439,7 @@ public:
    * @returns The number of bytes received.
    *
    * @throws std::system_error Thrown on failure. An error code of
-   * std::experimental::net::error::eof indicates that the connection was closed by the
+   * std::experimental::net::v1::error::eof indicates that the connection was closed by the
    * peer.
    *
    * @note The receive operation may not receive all of the requested number of
@@ -462,7 +462,7 @@ public:
     std::error_code ec;
     std::size_t s = this->get_service().receive(
         this->get_implementation(), buffers, 0, ec);
-    std::experimental::net::detail::throw_error(ec, "receive");
+    std::experimental::net::v1::detail::throw_error(ec, "receive");
     return s;
   }
 
@@ -479,7 +479,7 @@ public:
    * @returns The number of bytes received.
    *
    * @throws std::system_error Thrown on failure. An error code of
-   * std::experimental::net::error::eof indicates that the connection was closed by the
+   * std::experimental::net::v1::error::eof indicates that the connection was closed by the
    * peer.
    *
    * @note The receive operation may not receive all of the requested number of
@@ -503,7 +503,7 @@ public:
     std::error_code ec;
     std::size_t s = this->get_service().receive(
         this->get_implementation(), buffers, flags, ec);
-    std::experimental::net::detail::throw_error(ec, "receive");
+    std::experimental::net::v1::detail::throw_error(ec, "receive");
     return s;
   }
 
@@ -553,7 +553,7 @@ public:
    * Regardless of whether the asynchronous operation completes immediately or
    * not, the handler will not be invoked from within this function. Invocation
    * of the handler will be performed in a manner equivalent to using
-   * std::experimental::net::io_context::post().
+   * std::experimental::net::v1::io_context::post().
    *
    * @note The receive operation may not receive all of the requested number of
    * bytes. Consider using the @ref async_read function if you need to ensure
@@ -611,7 +611,7 @@ public:
    * Regardless of whether the asynchronous operation completes immediately or
    * not, the handler will not be invoked from within this function. Invocation
    * of the handler will be performed in a manner equivalent to using
-   * std::experimental::net::io_context::post().
+   * std::experimental::net::v1::io_context::post().
    *
    * @note The receive operation may not receive all of the requested number of
    * bytes. Consider using the @ref async_read function if you need to ensure
@@ -659,7 +659,7 @@ public:
    * @returns The number of bytes written.
    *
    * @throws std::system_error Thrown on failure. An error code of
-   * std::experimental::net::error::eof indicates that the connection was closed by the
+   * std::experimental::net::v1::error::eof indicates that the connection was closed by the
    * peer.
    *
    * @note The write_some operation may not transmit all of the data to the
@@ -681,7 +681,7 @@ public:
     std::error_code ec;
     std::size_t s = this->get_service().send(
         this->get_implementation(), buffers, 0, ec);
-    std::experimental::net::detail::throw_error(ec, "write_some");
+    std::experimental::net::v1::detail::throw_error(ec, "write_some");
     return s;
   }
 
@@ -728,7 +728,7 @@ public:
    * Regardless of whether the asynchronous operation completes immediately or
    * not, the handler will not be invoked from within this function. Invocation
    * of the handler will be performed in a manner equivalent to using
-   * std::experimental::net::io_context::post().
+   * std::experimental::net::v1::io_context::post().
    *
    * @note The write operation may not transmit all of the data to the peer.
    * Consider using the @ref async_write function if you need to ensure that all
@@ -773,7 +773,7 @@ public:
    * @returns The number of bytes read.
    *
    * @throws std::system_error Thrown on failure. An error code of
-   * std::experimental::net::error::eof indicates that the connection was closed by the
+   * std::experimental::net::v1::error::eof indicates that the connection was closed by the
    * peer.
    *
    * @note The read_some operation may not read all of the requested number of
@@ -796,7 +796,7 @@ public:
     std::error_code ec;
     std::size_t s = this->get_service().receive(
         this->get_implementation(), buffers, 0, ec);
-    std::experimental::net::detail::throw_error(ec, "read_some");
+    std::experimental::net::v1::detail::throw_error(ec, "read_some");
     return s;
   }
 
@@ -845,7 +845,7 @@ public:
    * Regardless of whether the asynchronous operation completes immediately or
    * not, the handler will not be invoked from within this function. Invocation
    * of the handler will be performed in a manner equivalent to using
-   * std::experimental::net::io_context::post().
+   * std::experimental::net::v1::io_context::post().
    *
    * @note The read operation may not read all of the requested number of bytes.
    * Consider using the @ref async_read function if you need to ensure that the

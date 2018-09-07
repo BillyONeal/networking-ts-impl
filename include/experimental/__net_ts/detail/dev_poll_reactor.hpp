@@ -56,7 +56,7 @@ public:
   };
 
   // Constructor.
-  NET_TS_DECL dev_poll_reactor(std::experimental::net::execution_context& ctx);
+  NET_TS_DECL dev_poll_reactor(std::experimental::net::v1::execution_context& ctx);
 
   // Destructor.
   NET_TS_DECL ~dev_poll_reactor();
@@ -66,7 +66,7 @@ public:
 
   // Recreate internal descriptors following a fork.
   NET_TS_DECL void notify_fork(
-      std::experimental::net::execution_context::fork_event fork_ev);
+      std::experimental::net::v1::execution_context::fork_event fork_ev);
 
   // Initialise the task.
   NET_TS_DECL void init_task();
@@ -104,14 +104,20 @@ public:
   NET_TS_DECL void cancel_ops(socket_type descriptor, per_descriptor_data&);
 
   // Cancel any operations that are running against the descriptor and remove
-  // its registration from the reactor.
+  // its registration from the reactor. The reactor resources associated with
+  // the descriptor must be released by calling cleanup_descriptor_data.
   NET_TS_DECL void deregister_descriptor(socket_type descriptor,
       per_descriptor_data&, bool closing);
 
-  // Cancel any operations that are running against the descriptor and remove
-  // its registration from the reactor.
+  // Remove the descriptor's registration from the reactor. The reactor
+  // resources associated with the descriptor must be released by calling
+  // cleanup_descriptor_data.
   NET_TS_DECL void deregister_internal_descriptor(
       socket_type descriptor, per_descriptor_data&);
+
+  // Perform any post-deregistration cleanup tasks associated with the
+  // descriptor data.
+  NET_TS_DECL void cleanup_descriptor_data(per_descriptor_data&);
 
   // Add a new timer queue to the reactor.
   template <typename Time_Traits>
@@ -142,7 +148,7 @@ public:
       typename timer_queue<Time_Traits>::per_timer_data& source);
 
   // Run /dev/poll once until interrupted or events are ready to be dispatched.
-  NET_TS_DECL void run(bool block, op_queue<operation>& ops);
+  NET_TS_DECL void run(long usec, op_queue<operation>& ops);
 
   // Interrupt the select loop.
   NET_TS_DECL void interrupt();
@@ -176,7 +182,7 @@ private:
   scheduler& scheduler_;
 
   // Mutex to protect access to internal data.
-  std::experimental::net::detail::mutex mutex_;
+  std::experimental::net::v1::detail::mutex mutex_;
 
   // The /dev/poll file descriptor.
   int dev_poll_fd_;

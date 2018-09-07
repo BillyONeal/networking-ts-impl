@@ -49,7 +49,7 @@ namespace multicast {
 #if defined(GENERATING_DOCUMENTATION)
 typedef implementation_defined join_group;
 #else
-typedef std::experimental::net::ip::detail::socket_option::multicast_request<
+typedef std::experimental::net::v1::ip::detail::socket_option::multicast_request<
   NET_TS_OS_DEF(IPPROTO_IP),
   NET_TS_OS_DEF(IP_ADD_MEMBERSHIP),
   NET_TS_OS_DEF(IPPROTO_IPV6),
@@ -77,7 +77,7 @@ typedef std::experimental::net::ip::detail::socket_option::multicast_request<
 #if defined(GENERATING_DOCUMENTATION)
 typedef implementation_defined leave_group;
 #else
-typedef std::experimental::net::ip::detail::socket_option::multicast_request<
+typedef std::experimental::net::v1::ip::detail::socket_option::multicast_request<
   NET_TS_OS_DEF(IPPROTO_IP),
   NET_TS_OS_DEF(IP_DROP_MEMBERSHIP),
   NET_TS_OS_DEF(IPPROTO_IPV6),
@@ -105,7 +105,7 @@ typedef std::experimental::net::ip::detail::socket_option::multicast_request<
 #if defined(GENERATING_DOCUMENTATION)
 typedef implementation_defined outbound_interface;
 #else
-typedef std::experimental::net::ip::detail::socket_option::network_interface<
+typedef std::experimental::net::v1::ip::detail::socket_option::network_interface<
   NET_TS_OS_DEF(IPPROTO_IP),
   NET_TS_OS_DEF(IP_MULTICAST_IF),
   NET_TS_OS_DEF(IPPROTO_IPV6),
@@ -141,7 +141,7 @@ typedef std::experimental::net::ip::detail::socket_option::network_interface<
 #if defined(GENERATING_DOCUMENTATION)
 typedef implementation_defined hops;
 #else
-typedef std::experimental::net::ip::detail::socket_option::multicast_hops<
+typedef std::experimental::net::v1::ip::detail::socket_option::multicast_hops<
   NET_TS_OS_DEF(IPPROTO_IP),
   NET_TS_OS_DEF(IP_MULTICAST_TTL),
   NET_TS_OS_DEF(IPPROTO_IPV6),
@@ -178,7 +178,7 @@ typedef std::experimental::net::ip::detail::socket_option::multicast_hops<
 #if defined(GENERATING_DOCUMENTATION)
 typedef implementation_defined enable_loopback;
 #else
-typedef std::experimental::net::ip::detail::socket_option::multicast_enable_loopback<
+typedef std::experimental::net::v1::ip::detail::socket_option::multicast_enable_loopback<
   NET_TS_OS_DEF(IPPROTO_IP),
   NET_TS_OS_DEF(IP_MULTICAST_LOOP),
   NET_TS_OS_DEF(IPPROTO_IPV6),

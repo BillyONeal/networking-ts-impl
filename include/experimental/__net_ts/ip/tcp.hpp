@@ -36,7 +36,7 @@ namespace ip {
 
 /// Encapsulates the flags needed for TCP.
 /**
- * The std::experimental::net::ip::tcp class contains flags necessary for TCP sockets.
+ * The std::experimental::net::v1::ip::tcp class contains flags necessary for TCP sockets.
  *
  * @par Thread Safety
  * @e Distinct @e objects: Safe.@n
@@ -124,7 +124,7 @@ public:
 #if defined(GENERATING_DOCUMENTATION)
   typedef implementation_defined no_delay;
 #else
-  typedef std::experimental::net::detail::socket_option::boolean<
+  typedef std::experimental::net::v1::detail::socket_option::boolean<
     NET_TS_OS_DEF(IPPROTO_TCP), NET_TS_OS_DEF(TCP_NODELAY)> no_delay;
 #endif
 
