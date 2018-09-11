@@ -45,7 +45,7 @@ template <>
 inline detail::io_context_impl& use_service<detail::io_context_impl>(
     io_context& ioc)
 {
-  return ioc.impl_;
+  return *ioc.impl_;
 }
 
 } // inline namespace v1
@@ -77,14 +77,14 @@ io_context::get_executor() NET_TS_NOEXCEPT
 #if defined(NET_TS_HAS_CHRONO)
 
 template <typename Rep, typename Period>
-std::size_t io_context::run_for(
+std::size_t manual_io_context::run_for(
     const chrono::duration<Rep, Period>& rel_time)
 {
   return this->run_until(chrono::steady_clock::now() + rel_time);
 }
 
 template <typename Clock, typename Duration>
-std::size_t io_context::run_until(
+std::size_t manual_io_context::run_until(
     const chrono::time_point<Clock, Duration>& abs_time)
 {
   std::size_t n = 0;
@@ -95,14 +95,14 @@ std::size_t io_context::run_until(
 }
 
 template <typename Rep, typename Period>
-std::size_t io_context::run_one_for(
+std::size_t manual_io_context::run_one_for(
     const chrono::duration<Rep, Period>& rel_time)
 {
   return this->run_one_until(chrono::steady_clock::now() + rel_time);
 }
 
 template <typename Clock, typename Duration>
-std::size_t io_context::run_one_until(
+std::size_t manual_io_context::run_one_until(
     const chrono::time_point<Clock, Duration>& abs_time)
 {
   typename Clock::time_point now = Clock::now();
@@ -138,13 +138,13 @@ io_context::executor_type::context() const NET_TS_NOEXCEPT
 inline void
 io_context::executor_type::on_work_started() const NET_TS_NOEXCEPT
 {
-  io_context_.impl_.work_started();
+  io_context_.impl_->work_started();
 }
 
 inline void
 io_context::executor_type::on_work_finished() const NET_TS_NOEXCEPT
 {
-  io_context_.impl_.work_finished();
+  io_context_.impl_->work_finished();
 }
 
 template <typename Function, typename Allocator>
@@ -154,7 +154,7 @@ void io_context::executor_type::dispatch(
   typedef typename decay<Function>::type function_type;
 
   // Invoke immediately if we are already inside the thread pool.
-  if (io_context_.impl_.can_dispatch())
+  if (io_context_.impl_->can_dispatch())
   {
     // Make a local, non-const copy of the function.
     function_type tmp(NET_TS_MOVE_CAST(Function)(f));
@@ -172,7 +172,7 @@ void io_context::executor_type::dispatch(
   NET_TS_HANDLER_CREATION((this->context(), *p.p,
         "io_context", &this->context(), 0, "post"));
 
-  io_context_.impl_.post_immediate_completion(p.p, false);
+  io_context_.impl_->post_immediate_completion(p.p, false);
   p.v = p.p = 0;
 }
 
@@ -190,7 +190,7 @@ void io_context::executor_type::post(
   NET_TS_HANDLER_CREATION((this->context(), *p.p,
         "io_context", &this->context(), 0, "post"));
 
-  io_context_.impl_.post_immediate_completion(p.p, false);
+  io_context_.impl_->post_immediate_completion(p.p, false);
   p.v = p.p = 0;
 }
 
@@ -208,14 +208,14 @@ void io_context::executor_type::defer(
   NET_TS_HANDLER_CREATION((this->context(), *p.p,
         "io_context", &this->context(), 0, "defer"));
 
-  io_context_.impl_.post_immediate_completion(p.p, true);
+  io_context_.impl_->post_immediate_completion(p.p, true);
   p.v = p.p = 0;
 }
 
 inline bool
 io_context::executor_type::running_in_this_thread() const NET_TS_NOEXCEPT
 {
-  return io_context_.impl_.can_dispatch();
+  return io_context_.impl_->can_dispatch();
 }
 
 inline std::experimental::net::v1::io_context& io_context::service::get_io_context()

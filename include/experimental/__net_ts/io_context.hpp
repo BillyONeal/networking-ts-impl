@@ -52,6 +52,46 @@ namespace detail {
 #endif
 } // namespace detail
 
+class io_context
+  : public execution_context
+{
+protected:
+  typedef detail::io_context_impl impl_type;
+#if defined(NET_TS_HAS_IOCP)
+  friend class detail::win_iocp_overlapped_ptr;
+#endif
+  io_context() : execution_context() {}
+public:
+  class executor_type;
+  friend class executor_type;
+
+  class service;
+
+  /// The type used to count the number of handlers executed by the context.
+  typedef std::size_t count_type;
+
+  /// Obtains the executor associated with the io_context.
+  executor_type get_executor() NET_TS_NOEXCEPT;
+protected:
+  // Helper function to add the implementation.
+  NET_TS_DECL impl_type* add_impl(impl_type* impl);
+
+  // Backwards compatible overload for use with services derived from
+  // io_context::service.
+  template <typename Service>
+  friend Service& use_service(io_context& ioc);
+
+#if defined(NET_TS_WINDOWS) || defined(__CYGWIN__)
+  detail::winsock_init<> init_;
+#elif defined(__sun) || defined(__QNX__) || defined(__hpux) || defined(_AIX) \
+  || defined(__osf__)
+  detail::signal_init<> init_;
+#endif
+
+  // The implementation.
+  impl_type* impl_;
+};
+
 /// Provides core I/O functionality.
 /**
  * The io_context class provides the core I/O functionality for users of the
@@ -178,26 +218,12 @@ namespace detail {
  * ...
  * work.reset(); // Allow run() to exit. @endcode
  */
-class io_context
-  : public execution_context
+class manual_io_context
+  : public io_context
 {
-private:
-  typedef detail::io_context_impl impl_type;
-#if defined(NET_TS_HAS_IOCP)
-  friend class detail::win_iocp_overlapped_ptr;
-#endif
-
 public:
-  class executor_type;
-  friend class executor_type;
-
-  class service;
-
-  /// The type used to count the number of handlers executed by the context.
-  typedef std::size_t count_type;
-
   /// Constructor.
-  NET_TS_DECL io_context();
+  NET_TS_DECL manual_io_context();
 
   /// Constructor.
   /**
@@ -206,7 +232,7 @@ public:
    * @param concurrency_hint A suggestion to the implementation on how many
    * threads it should allow to run simultaneously.
    */
-  NET_TS_DECL explicit io_context(int concurrency_hint);
+  NET_TS_DECL explicit manual_io_context(int concurrency_hint);
 
   /// Destructor.
   /**
@@ -240,10 +266,7 @@ public:
    * destructor defined above destroys all handlers, causing all @c shared_ptr
    * references to all connection objects to be destroyed.
    */
-  NET_TS_DECL ~io_context();
-
-  /// Obtains the executor associated with the io_context.
-  executor_type get_executor() NET_TS_NOEXCEPT;
+  NET_TS_DECL ~manual_io_context();
 
   /// Run the io_context object's event processing loop.
   /**
@@ -404,25 +427,6 @@ public:
    * the run(), run_one(), poll() or poll_one() functions.
    */
   NET_TS_DECL void restart();
-
-private:
-  // Helper function to add the implementation.
-  NET_TS_DECL impl_type& add_impl(impl_type* impl);
-
-  // Backwards compatible overload for use with services derived from
-  // io_context::service.
-  template <typename Service>
-  friend Service& use_service(io_context& ioc);
-
-#if defined(NET_TS_WINDOWS) || defined(__CYGWIN__)
-  detail::winsock_init<> init_;
-#elif defined(__sun) || defined(__QNX__) || defined(__hpux) || defined(_AIX) \
-  || defined(__osf__)
-  detail::signal_init<> init_;
-#endif
-
-  // The implementation.
-  impl_type& impl_;
 };
 
 /// Executor used to submit functions to an io_context.
