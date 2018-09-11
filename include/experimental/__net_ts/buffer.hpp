@@ -564,7 +564,7 @@ public:
 
   void operator()()
   {
-    *iter_;
+    (void)*iter_;
   }
 
 private:
@@ -830,7 +830,7 @@ inline NET_TS_MUTABLE_BUFFER buffer(PodType (&data)[N]) NET_TS_NOEXCEPT
 {
   return NET_TS_MUTABLE_BUFFER(data, N * sizeof(PodType));
 }
- 
+
 /// Create a new modifiable buffer that represents the given POD array.
 /**
  * @returns A mutable_buffer value equivalent to:
@@ -846,7 +846,7 @@ inline NET_TS_MUTABLE_BUFFER buffer(PodType (&data)[N],
       N * sizeof(PodType) < max_size_in_bytes
       ? N * sizeof(PodType) : max_size_in_bytes);
 }
- 
+
 /// Create a new non-modifiable buffer that represents the given POD array.
 /**
  * @returns A const_buffer value equivalent to:

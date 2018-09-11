@@ -1,0 +1,9 @@
+.vscode
+.ninja_deps
+.ninja_log
+bin
+.vs
+Debug
+x64
+
+*.vcxproj.user

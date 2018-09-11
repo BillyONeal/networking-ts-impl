@@ -1,0 +1,107 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Header Files\__net_ts">
+      <UniqueIdentifier>{fc22adad-0d41-4607-96e8-c0ed97a2feb9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\__net_ts\detail">
+      <UniqueIdentifier>{ee8a635d-cdae-4063-993f-8379c335aef0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\__net_ts\impl">
+      <UniqueIdentifier>{2ca3a2be-f995-46c4-b4a7-0db6450d19db}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="handler_allocator.hpp" />
+    <ClInclude Include="win_mutex.h" />
+    <ClInclude Include="op_counter.h" />
+    <ClInclude Include="tcp_socket_test.h" />
+    <ClInclude Include="udp_socket_test.h" />
+    <ClInclude Include="..\..\include\experimental\__net_ts\basic_waitable_timer.hpp">
+      <Filter>Header Files\__net_ts</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\experimental\__net_ts\detail\wintp_timer_service.hpp">
+      <Filter>Header Files\__net_ts\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\experimental\__net_ts\detail\wintp_mutex.hpp">
+      <Filter>Header Files\__net_ts\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\experimental\__net_ts\detail\wintp_scheduler.hpp">
+      <Filter>Header Files\__net_ts\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\experimental\__net_ts\detail\op_counter.hpp">
+      <Filter>Header Files\__net_ts\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\experimental\__net_ts\detail\win_iocp_socket_service.hpp">
+      <Filter>Header Files\__net_ts\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\experimental\__net_ts\detail\win_iocp_socket_service_base.hpp">
+      <Filter>Header Files\__net_ts\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\experimental\__net_ts\detail\wintp_socket_service.hpp">
+      <Filter>Header Files\__net_ts\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\experimental\__net_ts\basic_datagram_socket.hpp">
+      <Filter>Header Files\__net_ts</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\experimental\__net_ts\basic_socket.hpp">
+      <Filter>Header Files\__net_ts</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\experimental\__net_ts\detail\cancellable_object_owner.hpp">
+      <Filter>Header Files\__net_ts\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="cancellable_object_test.h" />
+    <ClInclude Include="..\..\include\experimental\__net_ts\detail\simple_intrusive_list.hpp">
+      <Filter>Header Files\__net_ts\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\experimental\__net_ts\basic_io_object.hpp">
+      <Filter>Header Files\__net_ts\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\experimental\__net_ts\io_context.hpp">
+      <Filter>Header Files\__net_ts</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\experimental\__net_ts\impl\io_context.hpp">
+      <Filter>Header Files\__net_ts\impl</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="vstimer_only.cpp" />
+    <ClCompile Include="not_inline_check.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\include\experimental\buffer">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="..\..\include\experimental\executor">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="..\..\include\experimental\internet">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="..\..\include\experimental\io_context">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="..\..\include\experimental\net">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="..\..\include\experimental\netfwd">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="..\..\include\experimental\socket">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="..\..\include\experimental\timer">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="..\..\include\experimental\tp_context">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="..\..\include\experimental\__net_ts\impl\io_context.ipp">
+      <Filter>Header Files\__net_ts\impl</Filter>
+    </None>
+  </ItemGroup>
+</Project>
