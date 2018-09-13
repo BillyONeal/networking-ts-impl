@@ -40,8 +40,7 @@ resolver_service_base::resolver_service_base(
     std::experimental::net::v1::manual_io_context& io_context)
   : io_context_impl_(std::experimental::net::v1::use_service<io_context_impl>(io_context)),
     work_io_context_(new std::experimental::net::v1::manual_io_context(-1)),
-    work_io_context_impl_(std::experimental::net::v1::use_service<
-        io_context_impl>(*work_io_context_)),
+    work_io_context_impl_(std::experimental::net::v1::use_service<io_context_impl>(*work_io_context_)),
     work_(std::experimental::net::v1::make_work_guard(*work_io_context_)),
     work_thread_(0)
 {
@@ -125,8 +124,7 @@ void resolver_service_base::cancel(
 
 void resolver_service_base::start_resolve_op(resolve_op* op)
 {
-  if (NET_TS_CONCURRENCY_HINT_IS_LOCKING(SCHEDULER,
-        io_context_impl_.concurrency_hint()))
+  if (io_context_impl_.concurrency_hint_is_locking())
   {
     start_work_thread();
     io_context_impl_.work_started();

@@ -89,7 +89,7 @@ struct scheduler::work_cleanup
 
 scheduler::scheduler(
     std::experimental::net::v1::execution_context& ctx, int concurrency_hint)
-  : std::experimental::net::v1::detail::execution_context_service_base<scheduler>(ctx),
+  : basic_scheduler<scheduler_operation>(ctx),
     one_thread_(concurrency_hint == 1
         || !NET_TS_CONCURRENCY_HINT_IS_LOCKING(
           SCHEDULER, concurrency_hint)
@@ -99,7 +99,6 @@ scheduler::scheduler(
           SCHEDULER, concurrency_hint)),
     task_(0),
     task_interrupted_(true),
-    outstanding_work_(0),
     stopped_(false),
     shutdown_(false),
     concurrency_hint_(concurrency_hint)
@@ -107,7 +106,7 @@ scheduler::scheduler(
   NET_TS_HANDLER_TRACKING_INIT;
 }
 
-void scheduler::shutdown()
+void scheduler::shutdown() NET_TS_NOEXCEPT
 {
   mutex::scoped_lock lock(mutex_);
   shutdown_ = true;
@@ -253,13 +252,13 @@ std::size_t scheduler::poll_one(std::error_code& ec)
   return do_poll_one(lock, this_thread, ec);
 }
 
-void scheduler::stop()
+void scheduler::stop() NET_TS_NOEXCEPT
 {
   mutex::scoped_lock lock(mutex_);
   stop_all_threads(lock);
 }
 
-bool scheduler::stopped() const
+bool scheduler::stopped() const NET_TS_NOEXCEPT
 {
   mutex::scoped_lock lock(mutex_);
   return stopped_;

@@ -44,12 +44,18 @@ namespace net {
 inline namespace v1 {
 
 namespace detail {
-#if defined(NET_TS_HAS_IOCP)
-  typedef class win_iocp_io_context io_context_impl;
-  class win_iocp_overlapped_ptr;
-#else
-  typedef class scheduler io_context_impl;
-#endif
+  template<class Operation>
+    struct basic_scheduler;
+  #if defined(NET_TS_HAS_IOCP)
+    class win_iocp_io_context;
+	class win_iocp_operation;
+    class win_iocp_overlapped_ptr;
+	typedef basic_scheduler<win_iocp_operation> io_context_impl;
+  #else
+    class scheduler;
+    class scheduler_operation;
+    typedef basic_scheduler<scheduler_operation> io_context_impl;
+  #endif
 } // namespace detail
 
 class io_context
@@ -58,7 +64,7 @@ class io_context
 protected:
   typedef detail::io_context_impl impl_type;
 #if defined(NET_TS_HAS_IOCP)
-  friend class detail::win_iocp_overlapped_ptr;
+  friend detail::win_iocp_overlapped_ptr;
 #endif
   io_context() : execution_context() {}
 public:
@@ -266,7 +272,7 @@ public:
    * destructor defined above destroys all handlers, causing all @c shared_ptr
    * references to all connection objects to be destroyed.
    */
-  NET_TS_DECL ~manual_io_context();
+  ~manual_io_context() = default;
 
   /// Run the io_context object's event processing loop.
   /**
