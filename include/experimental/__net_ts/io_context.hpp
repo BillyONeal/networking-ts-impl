@@ -98,6 +98,172 @@ protected:
   impl_type* impl_;
 };
 
+
+/// Base class for all io_context services.
+class io_context::service
+  : public execution_context::service
+{
+public:
+  /// Get the io_context object that owns the service.
+  std::experimental::net::v1::io_context& get_io_context();
+
+private:
+  /// Destroy all user-defined handler objects owned by the service.
+  NET_TS_DECL virtual void shutdown();
+
+  /// Handle notification of a fork-related event to perform any necessary
+  /// housekeeping.
+  /**
+   * This function is not a pure virtual so that services only have to
+   * implement it if necessary. The default implementation does nothing.
+   */
+  NET_TS_DECL virtual void notify_fork(
+      execution_context::fork_event event);
+
+protected:
+  /// Constructor.
+  /**
+   * @param owner The io_context object that owns the service.
+   */
+  NET_TS_DECL service(std::experimental::net::v1::io_context& owner);
+
+  /// Destructor.
+  NET_TS_DECL virtual ~service();
+};
+
+namespace detail {
+
+// Special service base class to keep classes header-file only.
+template <typename Type>
+class service_base
+  : public std::experimental::net::v1::io_context::service
+{
+public:
+  static std::experimental::net::v1::detail::service_id<Type> id;
+
+  // Constructor.
+  service_base(std::experimental::net::v1::io_context& io_context)
+    : std::experimental::net::v1::io_context::service(io_context)
+  {
+  }
+};
+
+template <typename Type>
+std::experimental::net::v1::detail::service_id<Type> service_base<Type>::id;
+
+/// Executor used to submit functions to an io_context.
+class io_context::executor_type
+{
+public:
+  /// Obtain the underlying execution context.
+  io_context& context() const NET_TS_NOEXCEPT;
+
+  /// Inform the io_context that it has some outstanding work to do.
+  /**
+   * This function is used to inform the io_context that some work has begun.
+   * This ensures that the io_context's run() and run_one() functions do not
+   * exit while the work is underway.
+   */
+  void on_work_started() const NET_TS_NOEXCEPT;
+
+  /// Inform the io_context that some work is no longer outstanding.
+  /**
+   * This function is used to inform the io_context that some work has
+   * finished. Once the count of unfinished work reaches zero, the io_context
+   * is stopped and the run() and run_one() functions may exit.
+   */
+  void on_work_finished() const NET_TS_NOEXCEPT;
+
+  /// Request the io_context to invoke the given function object.
+  /**
+   * This function is used to ask the io_context to execute the given function
+   * object. If the current thread is running the io_context, @c dispatch()
+   * executes the function before returning. Otherwise, the function will be
+   * scheduled to run on the io_context.
+   *
+   * @param f The function object to be called. The executor will make a copy
+   * of the handler object as required. The function signature of the function
+   * object must be: @code void function(); @endcode
+   *
+   * @param a An allocator that may be used by the executor to allocate the
+   * internal storage needed for function invocation.
+   */
+  template <typename Function, typename Allocator>
+  void dispatch(NET_TS_MOVE_ARG(Function) f, const Allocator& a) const;
+
+  /// Request the io_context to invoke the given function object.
+  /**
+   * This function is used to ask the io_context to execute the given function
+   * object. The function object will never be executed inside @c post().
+   * Instead, it will be scheduled to run on the io_context.
+   *
+   * @param f The function object to be called. The executor will make a copy
+   * of the handler object as required. The function signature of the function
+   * object must be: @code void function(); @endcode
+   *
+   * @param a An allocator that may be used by the executor to allocate the
+   * internal storage needed for function invocation.
+   */
+  template <typename Function, typename Allocator>
+  void post(NET_TS_MOVE_ARG(Function) f, const Allocator& a) const;
+
+  /// Request the io_context to invoke the given function object.
+  /**
+   * This function is used to ask the io_context to execute the given function
+   * object. The function object will never be executed inside @c defer().
+   * Instead, it will be scheduled to run on the io_context.
+   *
+   * If the current thread belongs to the io_context, @c defer() will delay
+   * scheduling the function object until the current thread returns control to
+   * the pool.
+   *
+   * @param f The function object to be called. The executor will make a copy
+   * of the handler object as required. The function signature of the function
+   * object must be: @code void function(); @endcode
+   *
+   * @param a An allocator that may be used by the executor to allocate the
+   * internal storage needed for function invocation.
+   */
+  template <typename Function, typename Allocator>
+  void defer(NET_TS_MOVE_ARG(Function) f, const Allocator& a) const;
+
+  /// Determine whether the io_context is running in the current thread.
+  /**
+   * @return @c true if the current thread is running the io_context. Otherwise
+   * returns @c false.
+   */
+  bool running_in_this_thread() const NET_TS_NOEXCEPT;
+
+  /// Compare two executors for equality.
+  /**
+   * Two executors are equal if they refer to the same underlying io_context.
+   */
+  friend bool operator==(const executor_type& a,
+      const executor_type& b) NET_TS_NOEXCEPT
+  {
+    return &a.io_context_ == &b.io_context_;
+  }
+
+  /// Compare two executors for inequality.
+  /**
+   * Two executors are equal if they refer to the same underlying io_context.
+   */
+  friend bool operator!=(const executor_type& a,
+      const executor_type& b) NET_TS_NOEXCEPT
+  {
+    return &a.io_context_ != &b.io_context_;
+  }
+
+private:
+  friend class io_context;
+
+  // Constructor.
+  explicit executor_type(io_context& i) : io_context_(i) {}
+
+  // The underlying io_context.
+  io_context& io_context_;
+};
+
 /// Provides core I/O functionality.
 /**
  * The io_context class provides the core I/O functionality for users of the
@@ -434,171 +600,6 @@ public:
    */
   NET_TS_DECL void restart();
 };
-
-/// Executor used to submit functions to an io_context.
-class io_context::executor_type
-{
-public:
-  /// Obtain the underlying execution context.
-  io_context& context() const NET_TS_NOEXCEPT;
-
-  /// Inform the io_context that it has some outstanding work to do.
-  /**
-   * This function is used to inform the io_context that some work has begun.
-   * This ensures that the io_context's run() and run_one() functions do not
-   * exit while the work is underway.
-   */
-  void on_work_started() const NET_TS_NOEXCEPT;
-
-  /// Inform the io_context that some work is no longer outstanding.
-  /**
-   * This function is used to inform the io_context that some work has
-   * finished. Once the count of unfinished work reaches zero, the io_context
-   * is stopped and the run() and run_one() functions may exit.
-   */
-  void on_work_finished() const NET_TS_NOEXCEPT;
-
-  /// Request the io_context to invoke the given function object.
-  /**
-   * This function is used to ask the io_context to execute the given function
-   * object. If the current thread is running the io_context, @c dispatch()
-   * executes the function before returning. Otherwise, the function will be
-   * scheduled to run on the io_context.
-   *
-   * @param f The function object to be called. The executor will make a copy
-   * of the handler object as required. The function signature of the function
-   * object must be: @code void function(); @endcode
-   *
-   * @param a An allocator that may be used by the executor to allocate the
-   * internal storage needed for function invocation.
-   */
-  template <typename Function, typename Allocator>
-  void dispatch(NET_TS_MOVE_ARG(Function) f, const Allocator& a) const;
-
-  /// Request the io_context to invoke the given function object.
-  /**
-   * This function is used to ask the io_context to execute the given function
-   * object. The function object will never be executed inside @c post().
-   * Instead, it will be scheduled to run on the io_context.
-   *
-   * @param f The function object to be called. The executor will make a copy
-   * of the handler object as required. The function signature of the function
-   * object must be: @code void function(); @endcode
-   *
-   * @param a An allocator that may be used by the executor to allocate the
-   * internal storage needed for function invocation.
-   */
-  template <typename Function, typename Allocator>
-  void post(NET_TS_MOVE_ARG(Function) f, const Allocator& a) const;
-
-  /// Request the io_context to invoke the given function object.
-  /**
-   * This function is used to ask the io_context to execute the given function
-   * object. The function object will never be executed inside @c defer().
-   * Instead, it will be scheduled to run on the io_context.
-   *
-   * If the current thread belongs to the io_context, @c defer() will delay
-   * scheduling the function object until the current thread returns control to
-   * the pool.
-   *
-   * @param f The function object to be called. The executor will make a copy
-   * of the handler object as required. The function signature of the function
-   * object must be: @code void function(); @endcode
-   *
-   * @param a An allocator that may be used by the executor to allocate the
-   * internal storage needed for function invocation.
-   */
-  template <typename Function, typename Allocator>
-  void defer(NET_TS_MOVE_ARG(Function) f, const Allocator& a) const;
-
-  /// Determine whether the io_context is running in the current thread.
-  /**
-   * @return @c true if the current thread is running the io_context. Otherwise
-   * returns @c false.
-   */
-  bool running_in_this_thread() const NET_TS_NOEXCEPT;
-
-  /// Compare two executors for equality.
-  /**
-   * Two executors are equal if they refer to the same underlying io_context.
-   */
-  friend bool operator==(const executor_type& a,
-      const executor_type& b) NET_TS_NOEXCEPT
-  {
-    return &a.io_context_ == &b.io_context_;
-  }
-
-  /// Compare two executors for inequality.
-  /**
-   * Two executors are equal if they refer to the same underlying io_context.
-   */
-  friend bool operator!=(const executor_type& a,
-      const executor_type& b) NET_TS_NOEXCEPT
-  {
-    return &a.io_context_ != &b.io_context_;
-  }
-
-private:
-  friend class io_context;
-
-  // Constructor.
-  explicit executor_type(io_context& i) : io_context_(i) {}
-
-  // The underlying io_context.
-  io_context& io_context_;
-};
-
-/// Base class for all io_context services.
-class io_context::service
-  : public execution_context::service
-{
-public:
-  /// Get the io_context object that owns the service.
-  std::experimental::net::v1::io_context& get_io_context();
-
-private:
-  /// Destroy all user-defined handler objects owned by the service.
-  NET_TS_DECL virtual void shutdown();
-
-  /// Handle notification of a fork-related event to perform any necessary
-  /// housekeeping.
-  /**
-   * This function is not a pure virtual so that services only have to
-   * implement it if necessary. The default implementation does nothing.
-   */
-  NET_TS_DECL virtual void notify_fork(
-      execution_context::fork_event event);
-
-protected:
-  /// Constructor.
-  /**
-   * @param owner The io_context object that owns the service.
-   */
-  NET_TS_DECL service(std::experimental::net::v1::io_context& owner);
-
-  /// Destructor.
-  NET_TS_DECL virtual ~service();
-};
-
-namespace detail {
-
-// Special service base class to keep classes header-file only.
-template <typename Type>
-class service_base
-  : public std::experimental::net::v1::io_context::service
-{
-public:
-  static std::experimental::net::v1::detail::service_id<Type> id;
-
-  // Constructor.
-  service_base(std::experimental::net::v1::io_context& io_context)
-    : std::experimental::net::v1::io_context::service(io_context)
-  {
-  }
-};
-
-template <typename Type>
-std::experimental::net::v1::detail::service_id<Type> service_base<Type>::id;
 
 } // namespace detail
 } // inline namespace v1
