@@ -23,7 +23,6 @@
 #include <experimental/__net_ts/detail/service_registry.hpp>
 #include <experimental/__net_ts/detail/throw_error.hpp>
 #include <experimental/__net_ts/detail/type_traits.hpp>
-#include <experimental/tp_context>
 
 #include <experimental/__net_ts/detail/push_options.hpp>
 
@@ -44,9 +43,9 @@ inline Service& use_service(io_context& ioc)
 
 template <>
 inline detail::io_context_impl& use_service<detail::io_context_impl>(
-    io_context_runner& ioc)
+    io_context& ioc)
 {
-  return ioc.impl_;
+  return *ioc.impl_;
 }
 
 } // inline namespace v1
@@ -69,23 +68,23 @@ namespace experimental {
 namespace net {
 inline namespace v1 {
 
-inline io_context_runner::executor_type
-io_context_runner::get_executor() NET_TS_NOEXCEPT
+inline io_context::executor_type
+io_context::get_executor() NET_TS_NOEXCEPT
 {
-  return io_context_runner::executor_type(*this);
+  return executor_type(*this);
 }
 
 #if defined(NET_TS_HAS_CHRONO)
 
 template <typename Rep, typename Period>
-std::size_t io_context_runner::run_for(
+std::size_t manual_io_context::run_for(
     const chrono::duration<Rep, Period>& rel_time)
 {
   return this->run_until(chrono::steady_clock::now() + rel_time);
 }
 
 template <typename Clock, typename Duration>
-std::size_t io_context_runner::run_until(
+std::size_t manual_io_context::run_until(
     const chrono::time_point<Clock, Duration>& abs_time)
 {
   std::size_t n = 0;
@@ -96,14 +95,14 @@ std::size_t io_context_runner::run_until(
 }
 
 template <typename Rep, typename Period>
-std::size_t io_context_runner::run_one_for(
+std::size_t manual_io_context::run_one_for(
     const chrono::duration<Rep, Period>& rel_time)
 {
   return this->run_one_until(chrono::steady_clock::now() + rel_time);
 }
 
 template <typename Clock, typename Duration>
-std::size_t io_context_runner::run_one_until(
+std::size_t manual_io_context::run_one_until(
     const chrono::time_point<Clock, Duration>& abs_time)
 {
   typename Clock::time_point now = Clock::now();
@@ -130,32 +129,32 @@ std::size_t io_context_runner::run_one_until(
 
 #endif // defined(NET_TS_HAS_CHRONO)
 
-inline io_context_runner&
-io_context_runner::executor_type::context() const NET_TS_NOEXCEPT
+inline io_context&
+io_context::executor_type::context() const NET_TS_NOEXCEPT
 {
   return io_context_;
 }
 
 inline void
-io_context_runner::executor_type::on_work_started() const NET_TS_NOEXCEPT
+io_context::executor_type::on_work_started() const NET_TS_NOEXCEPT
 {
-  io_context_.impl_.work_started();
+  io_context_.impl_->work_started();
 }
 
 inline void
-io_context_runner::executor_type::on_work_finished() const NET_TS_NOEXCEPT
+io_context::executor_type::on_work_finished() const NET_TS_NOEXCEPT
 {
-  io_context_.impl_.work_finished();
+  io_context_.impl_->work_finished();
 }
 
 template <typename Function, typename Allocator>
-void io_context_runner::executor_type::dispatch(
+void io_context::executor_type::dispatch(
     NET_TS_MOVE_ARG(Function) f, const Allocator& a) const
 {
   typedef typename decay<Function>::type function_type;
 
   // Invoke immediately if we are already inside the thread pool.
-  if (io_context_.impl_.can_dispatch())
+  if (io_context_.impl_->can_dispatch())
   {
     // Make a local, non-const copy of the function.
     function_type tmp(NET_TS_MOVE_CAST(Function)(f));
@@ -173,12 +172,12 @@ void io_context_runner::executor_type::dispatch(
   NET_TS_HANDLER_CREATION((this->context(), *p.p,
         "io_context", &this->context(), 0, "post"));
 
-  io_context_.impl_.post_immediate_completion(p.p, false);
+  io_context_.impl_->post_immediate_completion(p.p, false);
   p.v = p.p = 0;
 }
 
 template <typename Function, typename Allocator>
-void io_context_runner::executor_type::post(
+void io_context::executor_type::post(
     NET_TS_MOVE_ARG(Function) f, const Allocator& a) const
 {
   typedef typename decay<Function>::type function_type;
@@ -191,12 +190,12 @@ void io_context_runner::executor_type::post(
   NET_TS_HANDLER_CREATION((this->context(), *p.p,
         "io_context", &this->context(), 0, "post"));
 
-  io_context_.impl_.post_immediate_completion(p.p, false);
+  io_context_.impl_->post_immediate_completion(p.p, false);
   p.v = p.p = 0;
 }
 
 template <typename Function, typename Allocator>
-void io_context_runner::executor_type::defer(
+void io_context::executor_type::defer(
     NET_TS_MOVE_ARG(Function) f, const Allocator& a) const
 {
   typedef typename decay<Function>::type function_type;
@@ -209,82 +208,19 @@ void io_context_runner::executor_type::defer(
   NET_TS_HANDLER_CREATION((this->context(), *p.p,
         "io_context", &this->context(), 0, "defer"));
 
-  io_context_.impl_.post_immediate_completion(p.p, true);
+  io_context_.impl_->post_immediate_completion(p.p, true);
   p.v = p.p = 0;
 }
 
 inline bool
-io_context_runner::executor_type::running_in_this_thread() const NET_TS_NOEXCEPT
+io_context::executor_type::running_in_this_thread() const NET_TS_NOEXCEPT
 {
-  return io_context_.impl_.can_dispatch();
+  return io_context_.impl_->can_dispatch();
 }
 
 inline std::experimental::net::v1::io_context& io_context::service::get_io_context()
 {
   return static_cast<std::experimental::net::v1::io_context&>(context());
-}
-
-struct io_context::executor_type {
-  /// Obtain the underlying execution context.
-  io_context &context() const noexcept { return io; }
-
-  void on_work_started() const noexcept {
-    // TODO: forward to the underlying implementation
-    throw std::logic_error("not yet implemented");
-    //if (io.get_meta() == 0) io.impl.io->impl_.work_started();
-   // else io.impl.tp->scheduler().work_started();
-  }
-
-  void on_work_finished() const noexcept {
-    throw std::logic_error("not yet implemented");
-    // TODO:  tp.impl.work_finished();
-  }
-
-  template <typename Function, typename Allocator>
-  void dispatch(NET_TS_MOVE_ARG(Function) f, const Allocator &a) const {
-    throw std::logic_error("not yet implemented");
-  }
-
-  template <typename Function, typename Allocator>
-  void post(Function && f, Allocator const& a) const {
-    throw std::logic_error("not yet implemented");
-  }
-  template <typename Function, typename Allocator>
-  void defer(NET_TS_MOVE_ARG(Function) f, const Allocator &a) const {
-    throw std::logic_error("not yet implemented");
-  }
-
-  /// Compare two executors for equality.
-  /**
-  * Two executors are equal if they refer to the same underlying io_context.
-  */
-  friend bool operator==(const executor_type &a,
-    const executor_type &b) NET_TS_NOEXCEPT {
-    return &a.io == &b.io;
-  }
-
-  /// Compare two executors for inequality.
-  /**
-  * Two executors are equal if they refer to the same underlying io_context.
-  */
-  friend bool operator!=(const executor_type &a,
-    const executor_type &b) NET_TS_NOEXCEPT {
-    return !(a == b);
-  }
-
-private:
-  friend class io_context;
-
-  // Constructor.
-  explicit executor_type(io_context &io) : io(io) {}
-
-  // The underlying io_context.
-  io_context &io;
-};
-
-/// Obtains the executor associated with the io_context.
-io_context::executor_type io_context::get_executor() NET_TS_NOEXCEPT {
-  return executor_type{*this};
 }
 
 } // inline namespace v1

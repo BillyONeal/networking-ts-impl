@@ -316,7 +316,7 @@ public:
   void open(const protocol_type& protocol = protocol_type())
   {
     std::error_code ec;
-    NET_TS_SVC_INVOKE(open, protocol, ec);
+    this->get_service().open(this->get_implementation(), protocol, ec);
     std::experimental::net::v1::detail::throw_error(ec, "open");
   }
 
@@ -379,7 +379,7 @@ public:
   NET_TS_SYNC_OP_VOID assign(const protocol_type& protocol,
       const native_handle_type& native_acceptor, std::error_code& ec)
   {
-    NET_TS_SVC_INVOKE(assign,
+    this->get_service().assign(this->get_implementation(),
         protocol, native_acceptor, ec);
     NET_TS_SYNC_OP_VOID_RETURN(ec);
   }
@@ -411,7 +411,7 @@ public:
   void bind(const endpoint_type& endpoint)
   {
     std::error_code ec;
-    NET_TS_SVC_INVOKE(bind, endpoint, ec);
+    this->get_service().bind(this->get_implementation(), endpoint, ec);
     std::experimental::net::v1::detail::throw_error(ec, "bind");
   }
 
@@ -458,7 +458,7 @@ public:
   void listen(int backlog = socket_base::max_listen_connections)
   {
     std::error_code ec;
-    NET_TS_SVC_INVOKE(listen, backlog, ec);
+    this->get_service().listen(this->get_implementation(), backlog, ec);
     std::experimental::net::v1::detail::throw_error(ec, "listen");
   }
 
@@ -652,7 +652,7 @@ public:
   void set_option(const SettableSocketOption& option)
   {
     std::error_code ec;
-    NET_TS_SVC_INVOKE(set_option, option, ec);
+    this->get_service().set_option(this->get_implementation(), option, ec);
     std::experimental::net::v1::detail::throw_error(ec, "set_option");
   }
 
@@ -1336,7 +1336,7 @@ public:
       void (std::error_code,
         typename Protocol::socket)> init(handler);
 
-    NET_TS_SVC_INVOKE(async_accept,
+    this->get_service().async_accept(this->get_implementation(),
         &io_context, static_cast<endpoint_type*>(0), init.completion_handler);
 
     return init.result.get();

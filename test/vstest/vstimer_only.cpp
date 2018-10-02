@@ -1,4 +1,4 @@
-#include <experimental/tp_context>
+//#include <experimental/tp_context>
 
 #include "cancellable_object_test.h"
 #include "udp_socket_test.h"
@@ -125,7 +125,7 @@ using namespace std::experimental::net;
 
 extern void not_inline_check();
 
-void run(io_context_runner& ioc, int thread_count) {
+void run(manual_io_context& ioc, int thread_count) {
   std::vector<std::thread> threads;
   threads.reserve(thread_count);
   while (--thread_count > 0) {
@@ -157,15 +157,15 @@ int main() {
     not_inline_check();
     cancellable_object_test();
     //udp_socket_test<tp_context>("tp_context", [](auto& io) { io.join(); });
-    udp_socket_test<io_context_runner>("io_context", [](auto& io) { run(io, 8); });
+    udp_socket_test<manual_io_context>("manual_io_context", [](auto& io) { run(io, 8); });
     //udp_socket_test<tp_context>("tp_context", [](auto& io) { io.join(); });
     //udp_socket_test<io_context>("io_context", [](auto& io) { run(io, 8); });
     //udp_socket_test<io_context>("io_context", [](auto& io) { run(io, 8); });
-    //tcp_socket_test<io_context>("io_context", [](auto& io) { run(io, 8); });
+    tcp_socket_test<manual_io_context>("manual_io_context", [](auto& io) { run(io, 8); });
     //tcp_socket_test<tp_context>("tp_context", [](auto& io) { io.join(); });
-    //post_test<io_context>("io_context", [](auto& io) { run(io, 8); });
+    post_test<manual_io_context>("manual_io_context", [](auto& io) { run(io, 8); });
     //post_test<tp_context>("tp_context", [](auto& io) { io.join(); });
-    //timer_test<io_context>("io_context", [](auto& io) { run(io, 8);  });
+    timer_test<manual_io_context>("manual_io_context", [](auto& io) { run(io, 8); });
     //timer_test<tp_context>("tp_context", [](auto& io) { io.join(); });
     //test<null_context>("null_context", [](auto& io) { io.join(); });
     //printf("%d\n", is_executor<tp_executor>::value);

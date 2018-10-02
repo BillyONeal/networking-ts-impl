@@ -66,9 +66,8 @@ struct win_iocp_io_context::timer_thread_function
 
 win_iocp_io_context::win_iocp_io_context(
     std::experimental::net::v1::execution_context& ctx, int concurrency_hint)
-  : execution_context_service_base<win_iocp_io_context>(ctx),
+  : basic_scheduler<win_iocp_operation>(ctx),
     iocp_(),
-    outstanding_work_(0),
     stopped_(0),
     stop_event_posted_(0),
     shutdown_(0),
@@ -89,7 +88,7 @@ win_iocp_io_context::win_iocp_io_context(
   }
 }
 
-void win_iocp_io_context::shutdown()
+void win_iocp_io_context::shutdown() NET_TS_NOEXCEPT
 {
   ::InterlockedExchange(&shutdown_, 1);
 
@@ -100,7 +99,7 @@ void win_iocp_io_context::shutdown()
     ::SetWaitableTimer(waitable_timer_.handle, &timeout, 1, 0, 0, FALSE);
   }
 
-  while (::InterlockedExchangeAdd(&outstanding_work_, 0) > 0)
+  while (outstanding_work_.load() > 0)
   {
     op_queue<win_iocp_operation> ops;
     timer_queues_.get_all_timers(ops);
@@ -110,7 +109,7 @@ void win_iocp_io_context::shutdown()
       while (win_iocp_operation* op = ops.front())
       {
         ops.pop();
-        ::InterlockedDecrement(&outstanding_work_);
+        --outstanding_work_;
         op->destroy();
       }
     }
@@ -123,7 +122,7 @@ void win_iocp_io_context::shutdown()
           &completion_key, &overlapped, gqcs_timeout_);
       if (overlapped)
       {
-        ::InterlockedDecrement(&outstanding_work_);
+        --outstanding_work_;
         static_cast<win_iocp_operation*>(overlapped)->destroy();
       }
     }
@@ -151,7 +150,7 @@ std::error_code win_iocp_io_context::register_handle(
 
 size_t win_iocp_io_context::run(std::error_code& ec)
 {
-  if (::InterlockedExchangeAdd(&outstanding_work_, 0) == 0)
+  if (outstanding_work_.load() == 0)
   {
     stop();
     ec = std::error_code();
@@ -170,7 +169,7 @@ size_t win_iocp_io_context::run(std::error_code& ec)
 
 size_t win_iocp_io_context::run_one(std::error_code& ec)
 {
-  if (::InterlockedExchangeAdd(&outstanding_work_, 0) == 0)
+  if (outstanding_work_.load() == 0)
   {
     stop();
     ec = std::error_code();
@@ -185,7 +184,7 @@ size_t win_iocp_io_context::run_one(std::error_code& ec)
 
 size_t win_iocp_io_context::wait_one(long usec, std::error_code& ec)
 {
-  if (::InterlockedExchangeAdd(&outstanding_work_, 0) == 0)
+  if (outstanding_work_.load() == 0)
   {
     stop();
     ec = std::error_code();
@@ -200,7 +199,7 @@ size_t win_iocp_io_context::wait_one(long usec, std::error_code& ec)
 
 size_t win_iocp_io_context::poll(std::error_code& ec)
 {
-  if (::InterlockedExchangeAdd(&outstanding_work_, 0) == 0)
+  if (outstanding_work_.load() == 0)
   {
     stop();
     ec = std::error_code();
@@ -219,7 +218,7 @@ size_t win_iocp_io_context::poll(std::error_code& ec)
 
 size_t win_iocp_io_context::poll_one(std::error_code& ec)
 {
-  if (::InterlockedExchangeAdd(&outstanding_work_, 0) == 0)
+  if (outstanding_work_.load() == 0)
   {
     stop();
     ec = std::error_code();
@@ -232,7 +231,7 @@ size_t win_iocp_io_context::poll_one(std::error_code& ec)
   return do_one(0, ec);
 }
 
-void win_iocp_io_context::stop()
+void win_iocp_io_context::stop() NET_TS_NOEXCEPT
 {
   if (::InterlockedExchange(&stopped_, 1) == 0)
   {
@@ -292,7 +291,7 @@ void win_iocp_io_context::abandon_operations(
   while (win_iocp_operation* op = ops.front())
   {
     ops.pop();
-    ::InterlockedDecrement(&outstanding_work_);
+	--outstanding_work_;
     op->destroy();
   }
 }

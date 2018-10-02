@@ -137,9 +137,9 @@ public:
   {
     std::error_code ec;
     const protocol_type protocol = endpoint.protocol();
-    NET_TS_SVC_INVOKE(open, protocol, ec);
+    this->get_service().open(this->get_implementation(), protocol, ec);
     std::experimental::net::v1::detail::throw_error(ec, "open");
-    NET_TS_SVC_INVOKE(bind, endpoint, ec);
+    this->get_service().bind(this->get_implementation(), endpoint, ec);
     std::experimental::net::v1::detail::throw_error(ec, "bind");
   }
 
@@ -326,7 +326,7 @@ public:
   NET_TS_SYNC_OP_VOID assign(const protocol_type& protocol,
       const native_handle_type& native_socket, std::error_code& ec)
   {
-    NET_TS_SVC_INVOKE(assign,
+    this->get_service().assign(this->get_implementation(),
         protocol, native_socket, ec);
     NET_TS_SYNC_OP_VOID_RETURN(ec);
   }
@@ -334,7 +334,7 @@ public:
   /// Determine whether the socket is open.
   bool is_open() const
   {
-    return NET_TS_SVC_INVOKE_(is_open);
+    return this->get_service().is_open(this->get_implementation());
   }
 
   /// Close the socket.
@@ -352,7 +352,7 @@ public:
   void close()
   {
     std::error_code ec;
-    NET_TS_SVC_INVOKE(close, ec);
+    this->get_service().close(this->get_implementation(), ec);
     std::experimental::net::v1::detail::throw_error(ec, "close");
   }
 
@@ -382,7 +382,7 @@ public:
    */
   NET_TS_SYNC_OP_VOID close(std::error_code& ec)
   {
-    NET_TS_SVC_INVOKE(close, ec);
+    this->get_service().close(this->get_implementation(), ec);
     NET_TS_SYNC_OP_VOID_RETURN(ec);
   }
 
@@ -446,7 +446,7 @@ public:
    */
   native_handle_type native_handle()
   {
-    return NET_TS_SVC_INVOKE_(native_handle);
+    return this->get_service().native_handle(this->get_implementation());
   }
 
   /// Cancel all asynchronous operations associated with the socket.
@@ -802,7 +802,7 @@ public:
     {
       std::error_code ec;
       const protocol_type protocol = peer_endpoint.protocol();
-      NET_TS_SVC_INVOKE(open, protocol, ec);
+      this->get_service().open(this->get_implementation(), protocol, ec);
       if (ec)
       {
         async_completion<ConnectHandler,
@@ -821,7 +821,8 @@ public:
     async_completion<ConnectHandler,
       void (std::error_code)> init(handler);
 
-    NET_TS_SVC_INVOKE(async_connect, peer_endpoint, init.completion_handler);
+    this->get_service().async_connect(
+        this->get_implementation(), peer_endpoint, init.completion_handler);
 
     return init.result.get();
   }
@@ -911,7 +912,7 @@ public:
   NET_TS_SYNC_OP_VOID set_option(const SettableSocketOption& option,
       std::error_code& ec)
   {
-    NET_TS_SVC_INVOKE(set_option, option, ec);
+    this->get_service().set_option(this->get_implementation(), option, ec);
     NET_TS_SYNC_OP_VOID_RETURN(ec);
   }
 

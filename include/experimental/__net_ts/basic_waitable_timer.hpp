@@ -114,7 +114,7 @@ class basic_waitable_timer;
  * timer.wait();
  * @endcode
  *
- * @par
+ * @par 
  * Performing an asynchronous wait (C++11):
  * @code
  * void handler(const std::error_code& error)
@@ -223,7 +223,7 @@ public:
     : basic_io_object<NET_TS_SVC_T>(io_context)
   {
     std::error_code ec;
-    NET_TS_SVC_INVOKE(expires_at, expiry_time, ec);
+    this->get_service().expires_at(this->get_implementation(), expiry_time, ec);
     std::experimental::net::v1::detail::throw_error(ec, "expires_at");
   }
 
@@ -242,7 +242,8 @@ public:
     : basic_io_object<NET_TS_SVC_T>(io_context)
   {
     std::error_code ec;
-    NET_TS_SVC_INVOKE(expires_after, expiry_time, ec);
+    this->get_service().expires_after(
+        this->get_implementation(), expiry_time, ec);
     std::experimental::net::v1::detail::throw_error(ec, "expires_after");
   }
 
@@ -424,7 +425,8 @@ public:
   std::size_t expires_after(const duration& expiry_time)
   {
     std::error_code ec;
-    std::size_t s = NET_TS_SVC_INVOKE(expires_after, expiry_time, ec);
+    std::size_t s = this->get_service().expires_after(
+        this->get_implementation(), expiry_time, ec);
     std::experimental::net::v1::detail::throw_error(ec, "expires_after");
     return s;
   }
@@ -491,7 +493,8 @@ public:
     async_completion<WaitHandler,
       void (std::error_code)> init(handler);
 
-    NET_TS_SVC_INVOKE(async_wait, init.completion_handler);
+    this->get_service().async_wait(this->get_implementation(),
+        init.completion_handler);
 
     return init.result.get();
   }

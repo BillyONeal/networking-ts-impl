@@ -16,12 +16,14 @@
 #endif // defined(_MSC_VER) && (_MSC_VER >= 1200)
 
 #include <experimental/__net_ts/detail/config.hpp>
+#include <intrin.h>
 
 #if defined(NET_TS_HAS_IOCP)
 
 #include <experimental/__net_ts/detail/limits.hpp>
 #include <experimental/__net_ts/detail/mutex.hpp>
 #include <experimental/__net_ts/detail/op_queue.hpp>
+#include <experimental/__net_ts/detail/basic_scheduler.hpp>
 #include <experimental/__net_ts/detail/scoped_ptr.hpp>
 #include <experimental/__net_ts/detail/socket_types.hpp>
 #include <experimental/__net_ts/detail/thread.hpp>
@@ -44,8 +46,7 @@ namespace detail {
 class wait_op;
 
 class win_iocp_io_context
-  : public execution_context_service_base<win_iocp_io_context>,
-    public thread_context
+  : public basic_scheduler<win_iocp_operation>
 {
 public:
   // Constructor. Specifies a concurrency hint that is passed through to the
@@ -54,7 +55,7 @@ public:
       int concurrency_hint = -1);
 
   // Destroy all user-defined handler objects owned by the service.
-  NET_TS_DECL void shutdown();
+  NET_TS_DECL void shutdown() NET_TS_NOEXCEPT;
 
   // Initialise the task. Nothing to do here.
   void init_task()
@@ -81,10 +82,10 @@ public:
   NET_TS_DECL size_t poll_one(std::error_code& ec);
 
   // Stop the event processing loop.
-  NET_TS_DECL void stop();
+  NET_TS_DECL void stop() NET_TS_NOEXCEPT;
 
   // Determine whether the io_context is stopped.
-  bool stopped() const
+  bool stopped() const NET_TS_NOEXCEPT override
   {
     return ::InterlockedExchangeAdd(&stopped_, 0) != 0;
   }
@@ -93,25 +94,6 @@ public:
   void restart()
   {
     ::InterlockedExchange(&stopped_, 0);
-  }
-
-  // Notify that some work has started.
-  void work_started()
-  {
-    ::InterlockedIncrement(&outstanding_work_);
-  }
-
-  // Notify that some work has finished.
-  void work_finished()
-  {
-    if (::InterlockedDecrement(&outstanding_work_) == 0)
-      stop();
-  }
-
-  // Return whether a handler can be dispatched immediately.
-  bool can_dispatch()
-  {
-    return thread_call_stack::contains(this) != 0;
   }
 
   // Request invocation of the given operation and return immediately. Assumes
@@ -145,13 +127,6 @@ public:
   void post_private_deferred_completion(win_iocp_operation* op)
   {
     post_deferred_completion(op);
-  }
-
-  // Enqueue the given operation following a failed attempt to dispatch the
-  // operation for immediate invocation.
-  void do_dispatch(operation* op)
-  {
-    post_immediate_completion(op, false);
   }
 
   // Process unfinished operations as part of a shutdown operation. Assumes
@@ -248,9 +223,6 @@ private:
 
   // The IO completion port used for queueing operations.
   auto_handle iocp_;
-
-  // The count of unfinished work.
-  long outstanding_work_;
 
   // Flag to indicate whether the event loop has been stopped.
   mutable long stopped_;

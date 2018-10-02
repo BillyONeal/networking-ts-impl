@@ -81,12 +81,12 @@ namespace detail {
 class socket_streambuf_io_context
 {
 protected:
-  socket_streambuf_io_context(io_context_runner* ctx)
+  socket_streambuf_io_context(io_context* ctx)
     : default_io_context_(ctx)
   {
   }
 
-  shared_ptr<io_context_runner> default_io_context_;
+  shared_ptr<io_context> default_io_context_;
 };
 
 // A separate base class is used to ensure that the dynamically allocated

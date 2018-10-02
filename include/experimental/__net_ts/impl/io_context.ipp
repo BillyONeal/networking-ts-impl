@@ -31,78 +31,84 @@
 
 #include <experimental/__net_ts/detail/push_options.hpp>
 
+namespace {
+  #if defined(NET_TS_HAS_IOCP)
+  typedef std::experimental::net::v1::detail::win_iocp_io_context concrete_impl;
+#else
+  typedef std::experimental::net::v1::detail::scheduler concrete_impl;
+#endif
+}
+
 namespace std {
 namespace experimental {
 namespace net {
 inline namespace v1 {
 
-io_context_runner::io_context_runner()
-  : impl_(add_impl(new impl_type(*this, NET_TS_CONCURRENCY_HINT_DEFAULT)))
+manual_io_context::manual_io_context()
+  : io_context()
 {
+  impl_ = add_impl(new concrete_impl(*this, NET_TS_CONCURRENCY_HINT_DEFAULT));
 }
 
-io_context_runner::io_context_runner(int concurrency_hint)
-  : impl_(add_impl(new impl_type(*this, concurrency_hint == 1
-          ? NET_TS_CONCURRENCY_HINT_1 : concurrency_hint)))
+manual_io_context::manual_io_context(int concurrency_hint)
+  : io_context()
 {
+  impl_ = add_impl(new concrete_impl(*this, concurrency_hint == 1
+          ? NET_TS_CONCURRENCY_HINT_1 : concurrency_hint));
 }
 
-io_context_runner::impl_type& io_context_runner::add_impl(io_context_runner::impl_type* impl)
+io_context::impl_type* io_context::add_impl(io_context::impl_type* impl)
 {
   std::experimental::net::v1::detail::scoped_ptr<impl_type> scoped_impl(impl);
   std::experimental::net::v1::add_service<impl_type>(*this, scoped_impl.get());
-  return *scoped_impl.release();
+  return scoped_impl.release();
 }
 
-io_context_runner::~io_context_runner()
-{
-}
-
-io_context_runner::count_type io_context_runner::run()
+io_context::count_type manual_io_context::run()
 {
   std::error_code ec;
-  count_type s = impl_.run(ec);
+  count_type s = static_cast<concrete_impl *>(impl_)->run(ec);
   std::experimental::net::v1::detail::throw_error(ec);
   return s;
 }
 
-io_context::count_type io_context_runner::run_one()
+io_context::count_type manual_io_context::run_one()
 {
   std::error_code ec;
-  count_type s = impl_.run_one(ec);
+  count_type s = static_cast<concrete_impl *>(impl_)->run_one(ec);
   std::experimental::net::v1::detail::throw_error(ec);
   return s;
 }
 
-io_context::count_type io_context_runner::poll()
+io_context::count_type manual_io_context::poll()
 {
   std::error_code ec;
-  count_type s = impl_.poll(ec);
+  count_type s = static_cast<concrete_impl *>(impl_)->poll(ec);
   std::experimental::net::v1::detail::throw_error(ec);
   return s;
 }
 
-io_context::count_type io_context_runner::poll_one()
+io_context::count_type manual_io_context::poll_one()
 {
   std::error_code ec;
-  count_type s = impl_.poll_one(ec);
+  count_type s = static_cast<concrete_impl *>(impl_)->poll_one(ec);
   std::experimental::net::v1::detail::throw_error(ec);
   return s;
 }
 
-void io_context_runner::stop()
+void manual_io_context::stop()
 {
-  impl_.stop();
+  impl_->stop();
 }
 
-bool io_context_runner::stopped() const
+bool manual_io_context::stopped() const
 {
-  return impl_.stopped();
+  return impl_->stopped();
 }
 
-void io_context_runner::restart()
+void manual_io_context::restart()
 {
-  impl_.restart();
+  static_cast<concrete_impl *>(impl_)->restart();
 }
 
 io_context::service::service(std::experimental::net::v1::io_context& owner)

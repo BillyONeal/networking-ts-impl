@@ -24,6 +24,7 @@
 #include <iostream>
 #include <mutex>
 #include <string>
+#include <memory>
 #include <vector>
 
 //#include "tp_context.h"
@@ -164,10 +165,10 @@ public:
     stop_timer_.expires_after(std::chrono::seconds(timeout));
     stop_timer_.async_wait([this, timeout](auto) {
       udp_stats stats(timeout);
-      stats.add(bytes_written_, bytes_read_);
+      stats.add(this->bytes_written_, this->bytes_read_);
       stats.print();
       printf("stopping...\n");
-      io_context_.stop();
+      this->io_context_.stop();
     });
 
     this->start_write();

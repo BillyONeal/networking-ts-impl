@@ -22,6 +22,7 @@
 #include <experimental/net>
 #include <experimental/timer>
 #include <iostream>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -219,35 +220,29 @@ public:
 
     for (size_t i = 0; i < session_count; ++i)
     {
-      auto *new_session =
-        new tcp_client_session<IoContext>(io_context_, block_size, stats_);
+      auto new_session = std::make_unique<tcp_client_session<IoContext>>(io_context_, block_size, stats_);
       new_session->start(endpoints);
-      sessions_.push_back(new_session);
+      sessions_.push_back(std::move(new_session));
     }
   }
 
   ~tcp_client()
   {
-    while (!sessions_.empty())
-    {
-      delete sessions_.front();
-      sessions_.pop_front();
-    }
-
+	  handle_timeout();
+	  sessions_.clear();
     stats_.print();
-    exit(0);
   }
 
   void handle_timeout()
   {
-    for (auto *session : sessions_)
+    for (const auto& session : sessions_)
       session->stop();
   }
 
 private:
   IoContext& io_context_;
   std::experimental::net::system_timer stop_timer_;
-  std::list<tcp_client_session<IoContext>*> sessions_;
+  std::vector<std::unique_ptr<tcp_client_session<IoContext>>> sessions_;
   tcp_stats stats_;
 };
 

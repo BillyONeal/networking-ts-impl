@@ -44,54 +44,48 @@ namespace net {
 inline namespace v1 {
 
 namespace detail {
-#if defined(NET_TS_HAS_IOCP)
-  typedef class win_iocp_io_context io_context_impl;
-  class win_iocp_overlapped_ptr;
-#else
-  typedef class scheduler io_context_impl;
-#endif
+  template<class Operation>
+    struct basic_scheduler;
+  #if defined(NET_TS_HAS_IOCP)
+    class win_iocp_io_context;
+	class win_iocp_operation;
+    class win_iocp_overlapped_ptr;
+	typedef basic_scheduler<win_iocp_operation> io_context_impl;
+  #else
+    class scheduler;
+    class scheduler_operation;
+    typedef basic_scheduler<scheduler_operation> io_context_impl;
+  #endif
 } // namespace detail
-
-class tp_context;
-class io_context_runner;
 
 class io_context
   : public execution_context
 {
-  union context_t {
-    io_context_runner *io;
-    tp_context* tp;
-  };
-
-  context_t impl;
-
+protected:
+  typedef detail::io_context_impl impl_type;
+#if defined(NET_TS_HAS_IOCP)
+  friend detail::win_iocp_overlapped_ptr;
+#endif
+  io_context() : execution_context() {}
 public:
-  struct executor_type;
-  friend struct executor_type;
-
+  class executor_type;
+  friend class executor_type;
 
   class service;
-
-  virtual int get_meta() = 0;
 
   /// The type used to count the number of handlers executed by the context.
   typedef std::size_t count_type;
 
-protected:
-  /// Constructor.
-  NET_TS_DECL io_context() {}
-
-  virtual NET_TS_DECL ~io_context() {}
-
-public:
-
+  /// Obtains the executor associated with the io_context.
   executor_type get_executor() NET_TS_NOEXCEPT;
+protected:
+  // Helper function to add the implementation.
+  NET_TS_DECL impl_type* add_impl(impl_type* impl);
 
-  virtual void stop() = 0;
-
-  virtual bool stopped() const = 0;
-
-private:
+  // Backwards compatible overload for use with services derived from
+  // io_context::service.
+  template <typename Service>
+  friend Service& use_service(io_context& ioc);
 
 #if defined(NET_TS_WINDOWS) || defined(__CYGWIN__)
   detail::winsock_init<> init_;
@@ -99,6 +93,9 @@ private:
   || defined(__osf__)
   detail::signal_init<> init_;
 #endif
+
+  // The implementation.
+  impl_type* impl_;
 };
 
 /// Provides core I/O functionality.
@@ -227,30 +224,12 @@ private:
  * ...
  * work.reset(); // Allow run() to exit. @endcode
  */
-class io_context_runner
+class manual_io_context
   : public io_context
 {
-private:
-  typedef detail::io_context_impl impl_type;
-#if defined(NET_TS_HAS_IOCP)
-  friend class detail::win_iocp_overlapped_ptr;
-#endif
-
-  friend class io_context;
-
 public:
-  class executor_type;
-  friend class executor_type;
-
-  class service;
-
-  virtual int get_meta() { return 0; }
-
-  /// The type used to count the number of handlers executed by the context.
-  typedef std::size_t count_type;
-
   /// Constructor.
-  NET_TS_DECL io_context_runner();
+  NET_TS_DECL manual_io_context();
 
   /// Constructor.
   /**
@@ -259,7 +238,7 @@ public:
    * @param concurrency_hint A suggestion to the implementation on how many
    * threads it should allow to run simultaneously.
    */
-  NET_TS_DECL explicit io_context_runner(int concurrency_hint);
+  NET_TS_DECL explicit manual_io_context(int concurrency_hint);
 
   /// Destructor.
   /**
@@ -293,10 +272,7 @@ public:
    * destructor defined above destroys all handlers, causing all @c shared_ptr
    * references to all connection objects to be destroyed.
    */
-  NET_TS_DECL ~io_context_runner();
-
-  /// Obtains the executor associated with the io_context.
-  executor_type get_executor() NET_TS_NOEXCEPT;
+  ~manual_io_context() = default;
 
   /// Run the io_context object's event processing loop.
   /**
@@ -457,33 +433,14 @@ public:
    * the run(), run_one(), poll() or poll_one() functions.
    */
   NET_TS_DECL void restart();
-
-private:
-  // Helper function to add the implementation.
-  NET_TS_DECL impl_type& add_impl(impl_type* impl);
-
-  // Backwards compatible overload for use with services derived from
-  // io_context::service.
-  template <typename Service>
-  friend Service& use_service(io_context_runner& ioc);
-
-#if defined(NET_TS_WINDOWS) || defined(__CYGWIN__)
-  detail::winsock_init<> init_;
-#elif defined(__sun) || defined(__QNX__) || defined(__hpux) || defined(_AIX) \
-  || defined(__osf__)
-  detail::signal_init<> init_;
-#endif
-
-  // The implementation.
-  impl_type& impl_;
 };
 
 /// Executor used to submit functions to an io_context.
-class io_context_runner::executor_type
+class io_context::executor_type
 {
 public:
   /// Obtain the underlying execution context.
-  io_context_runner& context() const NET_TS_NOEXCEPT;
+  io_context& context() const NET_TS_NOEXCEPT;
 
   /// Inform the io_context that it has some outstanding work to do.
   /**
@@ -582,13 +539,13 @@ public:
   }
 
 private:
-  friend class io_context_runner;
+  friend class io_context;
 
   // Constructor.
-  explicit executor_type(io_context_runner& i) : io_context_(i) {}
+  explicit executor_type(io_context& i) : io_context_(i) {}
 
   // The underlying io_context.
-  io_context_runner& io_context_;
+  io_context& io_context_;
 };
 
 /// Base class for all io_context services.
@@ -631,8 +588,6 @@ class service_base
   : public std::experimental::net::v1::io_context::service
 {
 public:
-  virtual int svc_meta() { return 0; }
-
   static std::experimental::net::v1::detail::service_id<Type> id;
 
   // Constructor.

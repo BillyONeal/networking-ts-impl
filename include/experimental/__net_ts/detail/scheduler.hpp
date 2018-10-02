@@ -15,17 +15,17 @@
 # pragma once
 #endif // defined(_MSC_VER) && (_MSC_VER >= 1200)
 
-#include <experimental/__net_ts/detail/config.hpp>
+#include <experimental/__net_ts/detail/basic_scheduler.hpp>
 
 #include <system_error>
 #include <experimental/__net_ts/execution_context.hpp>
-#include <experimental/__net_ts/detail/atomic_count.hpp>
 #include <experimental/__net_ts/detail/conditionally_enabled_event.hpp>
 #include <experimental/__net_ts/detail/conditionally_enabled_mutex.hpp>
 #include <experimental/__net_ts/detail/op_queue.hpp>
 #include <experimental/__net_ts/detail/reactor_fwd.hpp>
 #include <experimental/__net_ts/detail/scheduler_operation.hpp>
 #include <experimental/__net_ts/detail/thread_context.hpp>
+#include <experimental/__net_ts/detail/concurrency_hint.hpp>
 
 #include <experimental/__net_ts/detail/push_options.hpp>
 
@@ -38,19 +38,16 @@ namespace detail {
 struct scheduler_thread_info;
 
 class scheduler
-  : public execution_context_service_base<scheduler>,
-    public thread_context
+  : public basic_scheduler<scheduler_operation>
 {
 public:
-  typedef scheduler_operation operation;
-
   // Constructor. Specifies the number of concurrent threads that are likely to
   // run the scheduler. If set to 1 certain optimisation are performed.
   NET_TS_DECL scheduler(std::experimental::net::v1::execution_context& ctx,
       int concurrency_hint = 0);
 
   // Destroy all user-defined handler objects owned by the service.
-  NET_TS_DECL void shutdown();
+  NET_TS_DECL void shutdown() NET_TS_NOEXCEPT override;
 
   // Initialise the task, if required.
   NET_TS_DECL void init_task();
@@ -72,62 +69,43 @@ public:
   NET_TS_DECL std::size_t poll_one(std::error_code& ec);
 
   // Interrupt the event processing loop.
-  NET_TS_DECL void stop();
+  NET_TS_DECL void stop() NET_TS_NOEXCEPT override;
 
   // Determine whether the scheduler is stopped.
-  NET_TS_DECL bool stopped() const;
+  NET_TS_DECL bool stopped() const NET_TS_NOEXCEPT override;
 
   // Restart in preparation for a subsequent run invocation.
   NET_TS_DECL void restart();
-
-  // Notify that some work has started.
-  void work_started()
-  {
-    ++outstanding_work_;
-  }
 
   // Used to compensate for a forthcoming work_finished call. Must be called
   // from within a scheduler-owned thread.
   NET_TS_DECL void compensating_work_started();
 
-  // Notify that some work has finished.
-  void work_finished()
-  {
-    if (--outstanding_work_ == 0)
-      stop();
-  }
-
-  // Return whether a handler can be dispatched immediately.
-  bool can_dispatch()
-  {
-    return thread_call_stack::contains(this) != 0;
-  }
-
   // Request invocation of the given operation and return immediately. Assumes
   // that work_started() has not yet been called for the operation.
   NET_TS_DECL void post_immediate_completion(
-      operation* op, bool is_continuation);
+      operation* op, bool is_continuation) override;
 
   // Request invocation of the given operation and return immediately. Assumes
   // that work_started() was previously called for the operation.
-  NET_TS_DECL void post_deferred_completion(operation* op);
+  NET_TS_DECL void post_deferred_completion(operation* op) override;
 
   // Request invocation of the given operations and return immediately. Assumes
   // that work_started() was previously called for each operation.
-  NET_TS_DECL void post_deferred_completions(op_queue<operation>& ops);
+  NET_TS_DECL void post_deferred_completions(op_queue<operation>& ops) override;
 
   // Enqueue the given operation following a failed attempt to dispatch the
   // operation for immediate invocation.
-  NET_TS_DECL void do_dispatch(operation* op);
+  NET_TS_DECL void do_dispatch(operation* op) override;
 
   // Process unfinished operations as part of a shutdownoperation. Assumes that
   // work_started() was previously called for the operations.
-  NET_TS_DECL void abandon_operations(op_queue<operation>& ops);
+  NET_TS_DECL void abandon_operations(op_queue<operation>& ops) override;
 
   // Get the concurrency hint that was used to initialise the scheduler.
-  int concurrency_hint() const
+  bool concurrency_hint_is_locking() const NET_TS_NOEXCEPT override
   {
-    return concurrency_hint_;
+    return NET_TS_CONCURRENCY_HINT_IS_LOCKING(SCHEDULER, concurrency_hint_);
   }
 
 private:
@@ -187,9 +165,6 @@ private:
 
   // Whether the task has been interrupted.
   bool task_interrupted_;
-
-  // The count of unfinished work.
-  atomic_count outstanding_work_;
 
   // The queue of handlers that are ready to be delivered.
   op_queue<operation> op_queue_;

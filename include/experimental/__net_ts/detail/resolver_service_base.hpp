@@ -43,7 +43,7 @@ public:
   typedef socket_ops::shared_cancel_token_type implementation_type;
 
   // Constructor.
-  NET_TS_DECL resolver_service_base(std::experimental::net::v1::io_context& io_context);
+  NET_TS_DECL resolver_service_base(std::experimental::net::v1::manual_io_context& io_context);
 
   // Destructor.
   NET_TS_DECL ~resolver_service_base();
@@ -118,14 +118,14 @@ private:
   std::experimental::net::v1::detail::mutex mutex_;
 
   // Private io_context used for performing asynchronous host resolution.
-  std::experimental::net::v1::detail::scoped_ptr<std::experimental::net::v1::io_context_runner> work_io_context_;
+  std::experimental::net::v1::detail::scoped_ptr<std::experimental::net::v1::manual_io_context> work_io_context_;
 
   // The work io_context implementation used to post completions.
   io_context_impl& work_io_context_impl_;
 
   // Work for the private io_context to perform.
   std::experimental::net::v1::executor_work_guard<
-      std::experimental::net::v1::io_context_runner::executor_type> work_;
+      std::experimental::net::v1::io_context::executor_type> work_;
 
   // Thread used for running the work io_context's run loop.
   std::experimental::net::v1::detail::scoped_ptr<std::experimental::net::v1::detail::thread> work_thread_;
