@@ -406,28 +406,27 @@ private:
 };
 
 // 7MBs vs 30MBps
-template <typename IoContext, typename F>
-void tcp_socket_test(const char* label, F run)
+template <typename Traits>
+void tcp_socket_test(Traits)
 {
   using namespace std::experimental::net;
-  char const *args[7] = { label, "127.0.0.1", "8888", "8", "128", "1", "1" };
+  char const *args[7] = { Traits::name, "127.0.0.1", "8888", "128", "1", "1" };
   try {
     using namespace std; // For atoi.
     const char *host = args[1];
     const char *port = args[2];
-    int thread_count = atoi(args[3]);
-    size_t block_size = atoi(args[4]);
-    size_t session_count = atoi(args[5]);
-    int timeout = atoi(args[6]);
+    size_t block_size = atoi(args[3]);
+    size_t session_count = atoi(args[4]);
+    int timeout = atoi(args[5]);
     ip::address address = ip::make_address(host);
 
-    IoContext ioc;
+    typename Traits::IoContext ioc;
     auto ep = ip::tcp::endpoint(address, atoi(port));
 
-    tcp_server<IoContext> s(ioc, ep, block_size);
-    tcp_client<IoContext> c(ioc, ep, block_size, session_count, timeout);
+    tcp_server s(ioc, ep, block_size);
+    tcp_client c(ioc, ep, block_size, session_count, timeout);
 
-    run(ioc);
+    Traits::run(ioc);
 
 #ifdef COUNT_ALLOCS
     std::cout << "allocs: " << allocs.load() << "\n";

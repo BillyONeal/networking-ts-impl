@@ -80,23 +80,16 @@ public:
   }
 
   void cancel_all() NET_TS_NOEXCEPT {
-    canceled_.store(true);
-    WakeByAddressAll(&canceled_);
   }
 
   void join() NET_TS_NOEXCEPT {
-    bool canceled;
-    static_assert(sizeof(canceled) == sizeof(canceled_));
-    while (canceled = canceled_.load(), !canceled) {
-      WaitOnAddress(&canceled_, &canceled, sizeof(canceled_), INFINITE);
-    }
-
-    WaitForThreadpoolWorkCallbacks(work_, FALSE);
     long outstanding_work;
     static_assert(sizeof(outstanding_work) == sizeof(outstanding_work_));
     while (outstanding_work = outstanding_work_.load(), outstanding_work != 0) {
       WaitOnAddress(&outstanding_work_, &outstanding_work, sizeof(outstanding_work_), INFINITE);
     }
+
+    WaitForThreadpoolWorkCallbacks(work_, FALSE);
   }
 
   virtual void post_immediate_completion(win_iocp_operation* op, bool) { post_deferred_completion(op); }
@@ -126,7 +119,6 @@ public:
 private:
   const PTP_CALLBACK_ENVIRON env_;
   const PTP_WORK work_;
-  atomic<bool> canceled_;
   op_queue<win_iocp_operation> pending_; // guarded by mtx_, TODO use lock free MPMC queue
   SRWLOCK mtx_;
   CONDITION_VARIABLE cnd_;

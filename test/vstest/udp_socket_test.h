@@ -192,30 +192,29 @@ public:
 };
 
 // 7MBs vs 30MBps
-template <typename IoContext, typename F>
-void udp_socket_test(const char* label, F run)
+template <typename Traits>
+void udp_socket_test(Traits)
 {
   using namespace std::experimental::net;
-  char const *args[7] = { label, "127.0.0.1", "8888", "8", "128", "14", "1" };
+  char const *args[7] = { Traits::name, "127.0.0.1", "8888", "128", "14", "1" };
   try {
     using namespace std; // For atoi.
     const char *host = args[1];
     const char *port = args[2];
-    int thread_count = atoi(args[3]);
-    size_t block_size = atoi(args[4]);
-    size_t session_count = atoi(args[5]);
-    int timeout = atoi(args[6]);
+    size_t block_size = atoi(args[3]);
+    size_t session_count = atoi(args[4]);
+    int timeout = atoi(args[5]);
     ip::address address = ip::make_address(host);
 
-    IoContext ioc;
+    typename Traits::IoContext ioc;
     auto ep = ip::udp::endpoint(address, atoi(port));
 
-    printf("%s: testing udp client/server\n", label);
+    printf("%s: testing udp client/server\n", Traits::name);
 
-    udp_server<IoContext> s(ioc, ep, block_size);
-    udp_client<IoContext> c(ioc, ep, block_size, timeout);
+    udp_server s(ioc, ep, block_size);
+    udp_client c(ioc, ep, block_size, timeout);
 
-    run(ioc);
+    Traits::run(ioc);
 
 #ifdef COUNT_ALLOCS
     std::cout << "allocs: " << allocs.load() << "\n";
