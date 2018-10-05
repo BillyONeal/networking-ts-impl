@@ -54,7 +54,8 @@ public:
   wintp_scheduler(std::experimental::net::v1::execution_context& ctx, PTP_CALLBACK_ENVIRON env)
     : basic_scheduler<win_iocp_operation>(ctx)
     , env_(env)
-    , work_(CreateThreadpoolWork(threadpool_work_callback, this, env)) {
+    , work_(CreateThreadpoolWork(threadpool_work_callback, this, env))
+    , mtx_(SRWLOCK_INIT) {
     if (!work_) {
       throw std::bad_alloc{};
     }
@@ -121,7 +122,6 @@ private:
   const PTP_WORK work_;
   op_queue<win_iocp_operation> pending_; // guarded by mtx_, TODO use lock free MPMC queue
   SRWLOCK mtx_;
-  CONDITION_VARIABLE cnd_;
 };
 
 } // namespace detail

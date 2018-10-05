@@ -16,18 +16,21 @@ void post_test(Traits) {
 
   auto targetCount = 1'000'000u;
   printf("Posting and running %u increment tasks on %s ...\n", targetCount, Traits::name);
-  auto start = high_resolution_clock::now();
+  auto start = steady_clock::now();
   typename Traits::IoContext io;
   auto ex = io.get_executor();
   for (unsigned i = 0; i < targetCount; ++i) {
     post(ex, [&] { count.fetch_add(1, std::memory_order_relaxed); });
   }
 
+  auto afterPost = steady_clock::now();
+  printf("Posting took %g seconds.\n", static_cast<duration<double>>(afterPost - start).count());
+
   Traits::run(io);
 
   assert(count.load(std::memory_order_relaxed) == targetCount);
 
-  duration<double> elapsed = high_resolution_clock::now() - start;
+  duration<double> elapsed = steady_clock::now() - start;
   printf("Completed in %g seconds.\n", elapsed.count());
 }
 
@@ -38,7 +41,7 @@ void timer_test(Traits) {
 
   printf("Retiring timers on %s ...\n", Traits::name);
 
-  auto start = high_resolution_clock::now();
+  auto start = steady_clock::now();
   typename Traits::IoContext io;
   system_timer slow_timer(io, 24h);
   slow_timer.async_wait([&io](auto ec) {
@@ -65,7 +68,7 @@ void timer_test(Traits) {
   faster_timer.async_wait([&io](auto) { puts("tick"); });
   Traits::run(io);
 
-  duration<double> elapsed = high_resolution_clock::now() - start;
+  duration<double> elapsed = steady_clock::now() - start;
   printf("Timer test completed in %g seconds\n", elapsed.count());
 }
 
