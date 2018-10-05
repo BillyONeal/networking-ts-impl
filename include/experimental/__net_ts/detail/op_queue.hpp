@@ -135,6 +135,18 @@ public:
     }
   }
 
+  long count() noexcept
+  {
+    long result = 0;
+    auto p = front_;
+    while (p) {
+      ++result;
+      p = op_queue_access::next(p);
+    }
+
+    return result;
+  }
+
   // Whether the queue is empty.
   bool empty() const
   {

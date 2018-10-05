@@ -85,7 +85,7 @@ public:
   NET_TS_DECL void stop() NET_TS_NOEXCEPT;
 
   // Determine whether the io_context is stopped.
-  bool stopped() const NET_TS_NOEXCEPT override
+  bool stopped() const NET_TS_NOEXCEPT
   {
     return ::InterlockedExchangeAdd(&stopped_, 0) != 0;
   }
@@ -94,6 +94,19 @@ public:
   void restart()
   {
     ::InterlockedExchange(&stopped_, 0);
+  }
+
+  // Notify that some work has started.
+  void work_started()
+  {
+    ++outstanding_work_;
+  }
+
+  // Notify that some work has finished.
+  void work_finished()
+  {
+    if (--outstanding_work_ == 0)
+      stop();
   }
 
   // Request invocation of the given operation and return immediately. Assumes
@@ -112,29 +125,6 @@ public:
   // that work_started() was previously called for the operations.
   NET_TS_DECL void post_deferred_completions(
       op_queue<win_iocp_operation>& ops);
-
-  // Request invocation of the given operation using the thread-private queue
-  // and return immediately. Assumes that work_started() has not yet been
-  // called for the operation.
-  void post_private_immediate_completion(win_iocp_operation* op)
-  {
-    post_immediate_completion(op, false);
-  }
-
-  // Request invocation of the given operation using the thread-private queue
-  // and return immediately. Assumes that work_started() was previously called
-  // for the operation.
-  void post_private_deferred_completion(win_iocp_operation* op)
-  {
-    post_deferred_completion(op);
-  }
-
-  // Enqueue the given operation following a failed attempt to dispatch the
-  // operation for immediate invocation.
-  void do_dispatch(operation* op)
-  {
-    post_immediate_completion(op, false);
-  }
 
   // Process unfinished operations as part of a shutdown operation. Assumes
   // that work_started() was previously called for the operations.
@@ -230,6 +220,9 @@ private:
 
   // The IO completion port used for queueing operations.
   auto_handle iocp_;
+
+  // The count of unfinished work.
+  atomic<long> outstanding_work_;
 
   // Flag to indicate whether the event loop has been stopped.
   mutable long stopped_;

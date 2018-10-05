@@ -17,8 +17,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="handler_allocator.hpp" />
-    <ClInclude Include="win_mutex.h" />
-    <ClInclude Include="op_counter.h" />
     <ClInclude Include="tcp_socket_test.h" />
     <ClInclude Include="udp_socket_test.h" />
     <ClInclude Include="..\..\include\experimental\__net_ts\basic_waitable_timer.hpp">
@@ -54,7 +52,6 @@
     <ClInclude Include="..\..\include\experimental\__net_ts\detail\cancellable_object_owner.hpp">
       <Filter>Header Files\__net_ts\detail</Filter>
     </ClInclude>
-    <ClInclude Include="cancellable_object_test.h" />
     <ClInclude Include="..\..\include\experimental\__net_ts\detail\simple_intrusive_list.hpp">
       <Filter>Header Files\__net_ts\detail</Filter>
     </ClInclude>

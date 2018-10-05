@@ -133,23 +133,24 @@ protected:
 
 namespace detail {
 
-// Special service base class to keep classes header-file only.
-template <typename Type>
-class service_base
-  : public std::experimental::net::v1::io_context::service
-{
-public:
-  static std::experimental::net::v1::detail::service_id<Type> id;
+	// Special service base class to keep classes header-file only.
+	template <typename Type>
+	class service_base
+		: public std::experimental::net::v1::io_context::service
+	{
+	public:
+		static std::experimental::net::v1::detail::service_id<Type> id;
 
-  // Constructor.
-  service_base(std::experimental::net::v1::io_context& io_context)
-    : std::experimental::net::v1::io_context::service(io_context)
-  {
-  }
-};
+		// Constructor.
+		service_base(std::experimental::net::v1::io_context& io_context)
+			: std::experimental::net::v1::io_context::service(io_context)
+		{
+		}
+	};
 
-template <typename Type>
-std::experimental::net::v1::detail::service_id<Type> service_base<Type>::id;
+	template <typename Type>
+	std::experimental::net::v1::detail::service_id<Type> service_base<Type>::id;
+} // namespace detail
 
 /// Executor used to submit functions to an io_context.
 class io_context::executor_type
@@ -601,7 +602,15 @@ public:
   NET_TS_DECL void restart();
 };
 
-} // namespace detail
+class tp_context
+  : public io_context
+{
+public:
+  NET_TS_DECL tp_context(PTP_CALLBACK_ENVIRON env = nullptr);
+  void cancel_all() NET_TS_NOEXCEPT;
+  void join() NET_TS_NOEXCEPT;
+};
+
 } // inline namespace v1
 } // namespace net
 } // namespace experimental

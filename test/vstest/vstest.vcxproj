@@ -166,12 +166,9 @@
     <ClInclude Include="..\..\include\experimental\__net_ts\detail\win_iocp_socket_service_base.hpp" />
     <ClInclude Include="..\..\include\experimental\__net_ts\impl\io_context.hpp" />
     <ClInclude Include="..\..\include\experimental\__net_ts\io_context.hpp" />
-    <ClInclude Include="cancellable_object_test.h" />
     <ClInclude Include="handler_allocator.hpp" />
-    <ClInclude Include="op_counter.h" />
     <ClInclude Include="tcp_socket_test.h" />
     <ClInclude Include="udp_socket_test.h" />
-    <ClInclude Include="win_mutex.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="not_inline_check.cpp" />

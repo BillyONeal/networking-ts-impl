@@ -291,7 +291,7 @@ void win_iocp_io_context::abandon_operations(
   while (win_iocp_operation* op = ops.front())
   {
     ops.pop();
-	--outstanding_work_;
+    --outstanding_work_;
     op->destroy();
   }
 }

@@ -15,10 +15,12 @@
 # pragma once
 #endif // defined(_MSC_VER) && (_MSC_VER >= 1200)
 
+#include <experimental/__net_ts/detail/config.hpp>
 #include <experimental/__net_ts/detail/basic_scheduler.hpp>
 
 #include <system_error>
 #include <experimental/__net_ts/execution_context.hpp>
+#include <experimental/__net_ts/detail/atomic_count.hpp>
 #include <experimental/__net_ts/detail/conditionally_enabled_event.hpp>
 #include <experimental/__net_ts/detail/conditionally_enabled_mutex.hpp>
 #include <experimental/__net_ts/detail/op_queue.hpp>
@@ -69,17 +71,30 @@ public:
   NET_TS_DECL std::size_t poll_one(std::error_code& ec);
 
   // Interrupt the event processing loop.
-  NET_TS_DECL void stop() NET_TS_NOEXCEPT override;
+  NET_TS_DECL void stop() NET_TS_NOEXCEPT;
 
   // Determine whether the scheduler is stopped.
-  NET_TS_DECL bool stopped() const NET_TS_NOEXCEPT override;
+  NET_TS_DECL bool stopped() const NET_TS_NOEXCEPT;
 
   // Restart in preparation for a subsequent run invocation.
   NET_TS_DECL void restart();
 
+  // Notify that some work has started.
+  void work_started()
+  {
+    ++outstanding_work_;
+  }
+
   // Used to compensate for a forthcoming work_finished call. Must be called
   // from within a scheduler-owned thread.
   NET_TS_DECL void compensating_work_started();
+
+  // Notify that some work has finished.
+  void work_finished()
+  {
+    if (--outstanding_work_ == 0)
+      stop();
+  }
 
   // Request invocation of the given operation and return immediately. Assumes
   // that work_started() has not yet been called for the operation.
@@ -100,7 +115,7 @@ public:
 
   // Process unfinished operations as part of a shutdownoperation. Assumes that
   // work_started() was previously called for the operations.
-  NET_TS_DECL void abandon_operations(op_queue<operation>& ops) override;
+  NET_TS_DECL void abandon_operations(op_queue<operation>& ops);
 
   // Get the concurrency hint that was used to initialise the scheduler.
   bool concurrency_hint_is_locking() const NET_TS_NOEXCEPT override
@@ -165,6 +180,9 @@ private:
 
   // Whether the task has been interrupted.
   bool task_interrupted_;
+
+  // The count of unfinished work.
+  atomic_count outstanding_work_;
 
   // The queue of handlers that are ready to be delivered.
   op_queue<operation> op_queue_;

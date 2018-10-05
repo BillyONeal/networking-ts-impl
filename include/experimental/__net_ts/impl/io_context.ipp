@@ -22,6 +22,7 @@
 #include <experimental/__net_ts/detail/scoped_ptr.hpp>
 #include <experimental/__net_ts/detail/service_registry.hpp>
 #include <experimental/__net_ts/detail/throw_error.hpp>
+#include <experimental/__net_ts/detail/wintp_scheduler.hpp>
 
 #if defined(NET_TS_HAS_IOCP)
 # include <experimental/__net_ts/detail/win_iocp_io_context.hpp>
@@ -32,10 +33,10 @@
 #include <experimental/__net_ts/detail/push_options.hpp>
 
 namespace {
-  #if defined(NET_TS_HAS_IOCP)
-  typedef std::experimental::net::v1::detail::win_iocp_io_context concrete_impl;
+#if defined(NET_TS_HAS_IOCP)
+typedef std::experimental::net::v1::detail::win_iocp_io_context concrete_impl;
 #else
-  typedef std::experimental::net::v1::detail::scheduler concrete_impl;
+typedef std::experimental::net::v1::detail::scheduler concrete_impl;
 #endif
 }
 
@@ -54,7 +55,7 @@ manual_io_context::manual_io_context(int concurrency_hint)
   : io_context()
 {
   impl_ = add_impl(new concrete_impl(*this, concurrency_hint == 1
-          ? NET_TS_CONCURRENCY_HINT_1 : concurrency_hint));
+    ? NET_TS_CONCURRENCY_HINT_1 : concurrency_hint));
 }
 
 io_context::impl_type* io_context::add_impl(io_context::impl_type* impl)
@@ -103,7 +104,7 @@ void manual_io_context::stop()
 
 bool manual_io_context::stopped() const
 {
-  return impl_->stopped();
+  static_cast<concrete_impl *>(impl_)->stopped();
 }
 
 void manual_io_context::restart()
@@ -127,6 +128,19 @@ void io_context::service::shutdown()
 void io_context::service::notify_fork(io_context::fork_event ev)
 {
   (void)ev;
+}
+
+tp_context::tp_context(PTP_CALLBACK_ENVIRON env)
+{
+  impl_ = add_impl(new detail::wintp_scheduler(*this, env));
+}
+
+void tp_context::cancel_all() NET_TS_NOEXCEPT {
+  static_cast<detail::wintp_scheduler*>(impl_)->cancel_all();
+}
+
+void tp_context::join() NET_TS_NOEXCEPT {
+  static_cast<detail::wintp_scheduler*>(impl_)->join();
 }
 
 } // inline namespace v1

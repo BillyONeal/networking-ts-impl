@@ -41,13 +41,12 @@ struct basic_scheduler
 
   virtual void shutdown() NET_TS_NOEXCEPT = 0;
   virtual void stop() NET_TS_NOEXCEPT = 0;
-  virtual bool stopped() const NET_TS_NOEXCEPT = 0;
   virtual bool concurrency_hint_is_locking() const NET_TS_NOEXCEPT { return true; }
+  virtual bool using_thread_pool() const NET_TS_NOEXCEPT { return false; }
   virtual void post_immediate_completion(operation* op, bool is_continuation) = 0;
   virtual void post_deferred_completion(operation* op) = 0;
   virtual void post_deferred_completions(op_queue<operation>& ops) = 0;
-  virtual void do_dispatch(operation* op) = 0;
-  virtual void abandon_operations(op_queue<operation>& ops) = 0;
+  virtual void do_dispatch(operation* op) { post_immediate_completion(op, false); }
 
   // Notify that some work has started.
   void work_started() NET_TS_NOEXCEPT
