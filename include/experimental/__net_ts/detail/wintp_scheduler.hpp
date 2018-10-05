@@ -22,6 +22,8 @@
 #include <experimental/__net_ts/execution_context.hpp>
 #include <experimental/__net_ts/detail/basic_scheduler.hpp>
 #include <Windows.h>
+#include <shared_mutex>
+#include <mutex>
 
 #include <experimental/__net_ts/detail/push_options.hpp>
 
@@ -37,10 +39,11 @@ class wintp_scheduler final
   static void __stdcall threadpool_work_callback(PTP_CALLBACK_INSTANCE, void * const this_raw, PTP_WORK) noexcept {
     auto* this_ = static_cast<wintp_scheduler*>(this_raw);
     win_iocp_operation * retiredOp;
-    AcquireSRWLockExclusive(&this_->mtx_);
-    retiredOp = this_->pending_.front();
-    this_->pending_.pop();
-    ReleaseSRWLockExclusive(&this_->mtx_);
+    {
+      lock_guard lck(this_->mtx_);
+      retiredOp = this_->pending_.front();
+      this_->pending_.pop();
+    }
       
     auto* err_cat = reinterpret_cast<std::error_category*>(retiredOp->Internal);
     auto err_value = retiredOp->Offset;
@@ -55,7 +58,7 @@ public:
     : basic_scheduler<win_iocp_operation>(ctx)
     , env_(env)
     , work_(CreateThreadpoolWork(threadpool_work_callback, this, env))
-    , mtx_(SRWLOCK_INIT) {
+    , mtx_() {
     if (!work_) {
       throw std::bad_alloc{};
     }
@@ -96,9 +99,8 @@ public:
   virtual void post_immediate_completion(win_iocp_operation* op, bool) { post_deferred_completion(op); }
   virtual void post_deferred_completion(win_iocp_operation* op) {
     {
-      AcquireSRWLockExclusive(&mtx_);
+      lock_guard lck(mtx_);
       pending_.push(op);
-      ReleaseSRWLockExclusive(&mtx_);
     }
 
     SubmitThreadpoolWork(work_);
@@ -107,9 +109,8 @@ public:
   virtual void post_deferred_completions(op_queue<win_iocp_operation>& ops) {
     long posts = ops.count();
     {
-      AcquireSRWLockExclusive(&mtx_);
+      lock_guard lck(mtx_);
       pending_.push(ops);
-      ReleaseSRWLockExclusive(&mtx_);
     }
 
     for (; 0 < posts; --posts) {
@@ -121,7 +122,7 @@ private:
   const PTP_CALLBACK_ENVIRON env_;
   const PTP_WORK work_;
   op_queue<win_iocp_operation> pending_; // guarded by mtx_, TODO use lock free MPMC queue
-  SRWLOCK mtx_;
+  shared_mutex mtx_;
 };
 
 } // namespace detail
