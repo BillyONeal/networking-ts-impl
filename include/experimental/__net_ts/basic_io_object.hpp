@@ -152,6 +152,9 @@ protected:
     return implementation_;
   }
 
+  template <class IoObjectService, class TpObjectService>
+    friend class basic_tp_aware_io_object;
+
 private:
   basic_io_object(const basic_io_object&);
   basic_io_object& operator=(const basic_io_object&);
@@ -235,14 +238,98 @@ protected:
     return implementation_;
   }
 
+  template <class IoObjectService, class TpObjectService>
+    friend class basic_tp_aware_io_object;
 private:
-  basic_io_object(const basic_io_object&);
-  void operator=(const basic_io_object&);
+  basic_io_object(const basic_io_object&) = delete;
+  void operator=(const basic_io_object&) = delete;
 
   IoObjectService* service_;
   implementation_type implementation_;
 };
 #endif // defined(NET_TS_HAS_MOVE)
+
+template <class IoObjectService, class TpObjectService>
+class basic_tp_aware_io_object {
+public:
+  explicit basic_tp_aware_io_object(std::experimental::net::v1::io_context& io_context)
+    : disengaged_impl_(),
+    thread_pool_engaged_(false) {
+    if (io_context.is_thread_pool()) {
+      ::new (static_cast<void *>(&tp_impl_)) basic_io_object<TpObjectService>(io_context);
+      thread_pool_engaged_ = true;
+    } else {
+      ::new (static_cast<void *>(&manual_impl_)) basic_io_object<IoObjectService>(io_context);
+    }
+  }
+
+  basic_tp_aware_io_object(const basic_tp_aware_io_object&) = delete;
+  basic_tp_aware_io_object(basic_tp_aware_io_object&& other)
+    : disengaged_impl_()
+    , thread_pool_engaged_(other.thread_pool_engaged_) {
+    if (thread_pool_engaged_) {
+      ::new (static_cast<void *>(&tp_impl_)) basic_io_object<TpObjectService>(std::move(other.tp_impl_));
+    } else {
+      ::new (static_cast<void *>(&manual_impl_)) basic_io_object<IoObjectService>(std::move(other.manual_impl_));
+    }
+  }
+
+  basic_tp_aware_io_object& operator=(const basic_tp_aware_io_object&) = delete;
+  basic_tp_aware_io_object& operator=(basic_tp_aware_io_object&& other) noexcept {
+    if (this != &other) {
+
+      if (thread_pool_engaged_ && other.thread_pool_engaged_) {
+        tp_impl_ = std::move(other.tp_impl_);
+      } else if (thread_pool_engaged_ && !other.thread_pool_engaged_) {
+        // TODO exception safety?
+        tp_impl_.~basic_io_object<TpObjectService>();
+        ::new (static_cast<void *>(&manual_impl_)) basic_io_object<IoObjectService>(std::move(other.manual_impl_));
+      } else if (!thread_pool_engaged_ && other.thread_pool_engaged_) {
+        // TODO exception safety?
+        manual_impl_.~basic_io_object<IoObjectService>();
+        ::new (static_cast<void *>(&tp_impl_)) basic_io_object<TpObjectService>(std::move(other.tp_impl_));
+      } else {
+        manual_impl_ = std::move(other.manual_impl_);
+      }
+    }
+
+    return *this;
+  }
+
+  ~basic_tp_aware_io_object() {
+    if (thread_pool_engaged_) {
+      tp_impl_.~basic_io_object<TpObjectService>();
+    } else {
+      manual_impl_.~basic_io_object<IoObjectService>();
+    }
+  }
+
+  /// Get the executor associated with the object.
+  std::experimental::net::v1::io_context::executor_type get_executor() NET_TS_NOEXCEPT {
+    if (thread_pool_engaged_) { return tp_impl_.get_executor(); }
+    return manual_impl_.get_executor();
+  }
+
+private:
+  union {
+    char disengaged_impl_;
+    basic_io_object<IoObjectService> manual_impl_;
+    basic_io_object<TpObjectService> tp_impl_;
+  };
+
+  bool thread_pool_engaged_;
+
+protected:
+
+  template<class Callable, class... Args>
+  auto visit(Callable c, Args&&... vals) {
+    if (thread_pool_engaged_) {
+      return c(tp_impl_.get_service(), tp_impl_.get_implementation(), std::forward<Args>(vals)...);
+    } else {
+      return c(manual_impl_.get_service(), manual_impl_.get_implementation(), std::forward<Args>(vals)...);
+    }
+  }
+};
 
 } // inline namespace v1
 } // namespace net

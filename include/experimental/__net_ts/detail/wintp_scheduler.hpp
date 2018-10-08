@@ -55,7 +55,7 @@ class wintp_scheduler final
 
 public:
   wintp_scheduler(std::experimental::net::v1::execution_context& ctx, PTP_CALLBACK_ENVIRON env)
-    : basic_scheduler<win_iocp_operation>(ctx)
+    : basic_scheduler<win_iocp_operation>(ctx, true)
     , env_(env)
     , work_(CreateThreadpoolWork(threadpool_work_callback, this, env))
     , mtx_() {
@@ -63,8 +63,6 @@ public:
       throw std::bad_alloc{};
     }
   }
-
-  bool using_thread_pool() const NET_TS_NOEXCEPT override { return true; }
 
   ~wintp_scheduler() NET_TS_NOEXCEPT {
     shutdown();

@@ -151,6 +151,7 @@ int main() {
     post_test(manual_run_traits{});
     post_test(tp_run_traits{});
     timer_test(manual_run_traits{});
+    //timer_test(tp_run_traits{});
   }
   catch (std::exception& e) {
     printf("caught: %s\n", e.what());

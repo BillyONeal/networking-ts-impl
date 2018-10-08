@@ -89,7 +89,7 @@ struct scheduler::work_cleanup
 
 scheduler::scheduler(
     std::experimental::net::v1::execution_context& ctx, int concurrency_hint)
-  : basic_scheduler<scheduler_operation>(ctx),
+  : basic_scheduler<scheduler_operation>(ctx, false),
     one_thread_(concurrency_hint == 1
         || !NET_TS_CONCURRENCY_HINT_IS_LOCKING(
           SCHEDULER, concurrency_hint)

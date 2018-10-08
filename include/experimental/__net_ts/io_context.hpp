@@ -78,6 +78,10 @@ public:
 
   /// Obtains the executor associated with the io_context.
   executor_type get_executor() NET_TS_NOEXCEPT;
+
+  bool is_thread_pool() NET_TS_NOEXCEPT { // TODO it seems like this shouldn't be publicly exposed
+    return impl_->is_thread_pool;
+  }
 protected:
   // Helper function to add the implementation.
   NET_TS_DECL impl_type* add_impl(impl_type* impl);

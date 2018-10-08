@@ -29,6 +29,7 @@
 
 #include <experimental/__net_ts/detail/chrono_time_traits.hpp>
 #include <experimental/__net_ts/detail/deadline_timer_service.hpp>
+#include <experimental/__net_ts/detail/wintp_timer_service.hpp>
 #define NET_TS_SVC_T \
     detail::deadline_timer_service< \
       detail::chrono_time_traits<Clock, WaitTraits> >
@@ -145,8 +146,9 @@ class basic_waitable_timer;
  */
 template <typename Clock, typename WaitTraits NET_TS_SVC_TPARAM>
 class basic_waitable_timer
-  : NET_TS_SVC_ACCESS basic_io_object<NET_TS_SVC_T>
+  : NET_TS_SVC_ACCESS basic_tp_aware_io_object<NET_TS_SVC_T, detail::wintp_timer_service<detail::chrono_time_traits<Clock, WaitTraits> > >
 {
+  typedef basic_tp_aware_io_object<NET_TS_SVC_T, detail::wintp_timer_service<detail::chrono_time_traits<Clock, WaitTraits> > > _Mybase;
 public:
   /// The type of the executor associated with the object.
   typedef io_context::executor_type executor_type;
@@ -173,7 +175,7 @@ public:
    * handlers for any asynchronous operations performed on the timer.
    */
   explicit basic_waitable_timer(std::experimental::net::v1::io_context& io_context)
-    : basic_io_object<NET_TS_SVC_T>(io_context)
+    : _Mybase(io_context)
   {
   }
 
@@ -189,11 +191,13 @@ public:
    */
   basic_waitable_timer(std::experimental::net::v1::io_context& io_context,
       const time_point& expiry_time)
-    : basic_io_object<NET_TS_SVC_T>(io_context)
+    : _Mybase(io_context)
   {
-    std::error_code ec;
-    this->get_service().expires_at(this->get_implementation(), expiry_time, ec);
-    std::experimental::net::v1::detail::throw_error(ec, "expires_at");
+    this->visit([](auto& svc, auto& impl, const time_point& expiry_time) {
+      std::error_code ec;
+      svc.expires_at(impl, expiry_time, ec);
+      std::experimental::net::v1::detail::throw_error(ec, "expires_at");
+    }, expiry_time);
   }
 
   /// Constructor to set a particular expiry time relative to now.
@@ -208,12 +212,13 @@ public:
    */
   basic_waitable_timer(std::experimental::net::v1::io_context& io_context,
       const duration& expiry_time)
-    : basic_io_object<NET_TS_SVC_T>(io_context)
+    : _Mybase(io_context)
   {
-    std::error_code ec;
-    this->get_service().expires_after(
-        this->get_implementation(), expiry_time, ec);
-    std::experimental::net::v1::detail::throw_error(ec, "expires_after");
+    this->visit([](auto& svc, auto& impl, const duration& expiry_time) {
+      std::error_code ec;
+      svc.expires_after(impl, expiry_time, ec);
+      std::experimental::net::v1::detail::throw_error(ec, "expires_after");
+    }, expiry_time);
   }
 
 #if defined(NET_TS_HAS_MOVE) || defined(GENERATING_DOCUMENTATION)
@@ -228,7 +233,7 @@ public:
    * constructed using the @c basic_waitable_timer(io_context&) constructor.
    */
   basic_waitable_timer(basic_waitable_timer&& other)
-    : basic_io_object<NET_TS_SVC_T>(std::move(other))
+    : _Mybase(std::move(other))
   {
   }
 
@@ -245,7 +250,7 @@ public:
    */
   basic_waitable_timer& operator=(basic_waitable_timer&& other)
   {
-    basic_io_object<NET_TS_SVC_T>::operator=(std::move(other));
+    _Mybase::operator=(std::move(other));
     return *this;
   }
 #endif // defined(NET_TS_HAS_MOVE) || defined(GENERATING_DOCUMENTATION)
@@ -257,12 +262,6 @@ public:
    */
   ~basic_waitable_timer()
   {
-  }
-
-  /// Get the executor associated with the object.
-  executor_type get_executor() NET_TS_NOEXCEPT
-  {
-    return basic_io_object<NET_TS_SVC_T>::get_executor();
   }
 
   /// Cancel any asynchronous operations that are waiting on the timer.
@@ -289,10 +288,12 @@ public:
    */
   std::size_t cancel()
   {
-    std::error_code ec;
-    std::size_t s = this->get_service().cancel(this->get_implementation(), ec);
-    std::experimental::net::v1::detail::throw_error(ec, "cancel");
-    return s;
+    return this->visit([](auto& svc, auto& impl) {
+      std::error_code ec;
+      auto s = svc.cancel(impl, ec);
+      std::experimental::net::v1::detail::throw_error(ec, "cancel");
+      return s;
+    });
   }
 
   /// Cancels one asynchronous operation that is waiting on the timer.
@@ -321,11 +322,12 @@ public:
    */
   std::size_t cancel_one()
   {
-    std::error_code ec;
-    std::size_t s = this->get_service().cancel_one(
-        this->get_implementation(), ec);
-    std::experimental::net::v1::detail::throw_error(ec, "cancel_one");
-    return s;
+    return this->visit([](auto& svc, auto& impl) {
+      std::error_code ec;
+      auto s = svc.cancel_one(impl, ec);
+      std::experimental::net::v1::detail::throw_error(ec, "cancel_one");
+      return s;
+    });
   }
 
   /// Get the timer's expiry time as an absolute time.
@@ -335,7 +337,7 @@ public:
    */
   time_point expiry() const
   {
-    return this->get_service().expiry(this->get_implementation());
+    return this->visit([](auto& svc, auto& impl) { return svc.expiry(impl); });
   }
 
   /// Set the timer's expiry time as an absolute time.
@@ -362,11 +364,12 @@ public:
    */
   std::size_t expires_at(const time_point& expiry_time)
   {
-    std::error_code ec;
-    std::size_t s = this->get_service().expires_at(
-        this->get_implementation(), expiry_time, ec);
-    std::experimental::net::v1::detail::throw_error(ec, "expires_at");
-    return s;
+    return this->visit([](auto& svc, auto& impl, const time_point& expiry_time) {
+      std::error_code ec;
+      auto s = svc.expires_at(impl, expiry_time, ec);
+      std::experimental::net::v1::detail::throw_error(ec, "expires_at");
+      return s;
+    }, expiry_time);
   }
 
   /// Set the timer's expiry time relative to now.
@@ -393,11 +396,12 @@ public:
    */
   std::size_t expires_after(const duration& expiry_time)
   {
-    std::error_code ec;
-    std::size_t s = this->get_service().expires_after(
-        this->get_implementation(), expiry_time, ec);
-    std::experimental::net::v1::detail::throw_error(ec, "expires_after");
-    return s;
+    return this->visit([](auto& svc, auto& impl, const duration& expiry_time) {
+      std::error_code ec;
+      auto s = svc.expires_after(impl, expiry_time, ec);
+      std::experimental::net::v1::detail::throw_error(ec, "expires_after");
+      return s;
+    }, expiry_time);
   }
 
   /// Perform a blocking wait on the timer.
@@ -409,9 +413,11 @@ public:
    */
   void wait()
   {
-    std::error_code ec;
-    this->get_service().wait(this->get_implementation(), ec);
-    std::experimental::net::v1::detail::throw_error(ec, "wait");
+    this->visit([](auto& svc, auto& impl) {
+      std::error_code ec;
+      svc.wait(impl, ec);
+      std::experimental::net::v1::detail::throw_error(ec, "wait");
+    });
   }
 
   /// Perform a blocking wait on the timer.
@@ -423,7 +429,9 @@ public:
    */
   void wait(std::error_code& ec)
   {
-    this->get_service().wait(this->get_implementation(), ec);
+    std::visit([](auto& svc, auto& impl, std::error_code& ec) {
+      svc.wait(impl, ec);
+    }, ec);
   }
 
   /// Start an asynchronous wait on the timer.
@@ -459,11 +467,14 @@ public:
     // not meet the documented type requirements for a WaitHandler.
     NET_TS_WAIT_HANDLER_CHECK(WaitHandler, handler) type_check;
 
-    async_completion<WaitHandler,
-      void (std::error_code)> init(handler);
+    using Completion = async_completion<WaitHandler,
+      void(std::error_code)>;
 
-    this->get_service().async_wait(this->get_implementation(),
-        init.completion_handler);
+    Completion init(handler);
+
+    this->visit([](auto& svc, auto& impl, Completion& init) {
+      svc.async_wait(impl, init.completion_handler);
+    }, init);
 
     return init.result.get();
   }

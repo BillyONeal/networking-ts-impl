@@ -66,7 +66,7 @@ struct win_iocp_io_context::timer_thread_function
 
 win_iocp_io_context::win_iocp_io_context(
     std::experimental::net::v1::execution_context& ctx, int concurrency_hint)
-  : basic_scheduler<win_iocp_operation>(ctx),
+  : basic_scheduler<win_iocp_operation>(ctx, false),
     iocp_(),
     stopped_(0),
     stop_event_posted_(0),

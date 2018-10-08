@@ -33,8 +33,11 @@ struct basic_scheduler
 {
   using operation = OperationType;
 
-  basic_scheduler() = default;
-  using execution_context_service_base<basic_scheduler<OperationType>>::execution_context_service_base;
+  basic_scheduler() = delete;
+  basic_scheduler(execution_context& ctx, const bool is_thread_pool_arg)
+    : execution_context_service_base<basic_scheduler<OperationType>>(ctx)
+    , is_thread_pool(is_thread_pool_arg)
+    { }
   basic_scheduler(const basic_scheduler&) = delete;
   basic_scheduler& operator=(const basic_scheduler&) = delete;
   virtual ~basic_scheduler() = default;
@@ -42,7 +45,6 @@ struct basic_scheduler
   virtual void shutdown() NET_TS_NOEXCEPT = 0;
   virtual void stop() NET_TS_NOEXCEPT = 0;
   virtual bool concurrency_hint_is_locking() const NET_TS_NOEXCEPT { return true; }
-  virtual bool using_thread_pool() const NET_TS_NOEXCEPT { return false; }
   virtual void post_immediate_completion(operation* op, bool is_continuation) = 0;
   virtual void post_deferred_completion(operation* op) = 0;
   virtual void post_deferred_completions(op_queue<operation>& ops) = 0;
@@ -57,8 +59,9 @@ struct basic_scheduler
   // Notify that some work has finished.
   void work_finished() NET_TS_NOEXCEPT
   {
-    if (--outstanding_work_ == 0)
+    if (--outstanding_work_ == 0) {
       stop();
+    }
   }
 
   // Return whether a handler can be dispatched immediately.
@@ -66,6 +69,8 @@ struct basic_scheduler
   {
     return thread_call_stack::contains(this) != 0;
   }
+
+  const bool is_thread_pool;
 
 protected:
   // The count of unfinished work.
